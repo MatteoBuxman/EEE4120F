@@ -2,92 +2,97 @@
 % Practical 1: 2D Convolution Analysis
 % =========================================================================
 %
-% GROUP NUMBER:
+% GROUP NUMBER: 
 %
 % MEMBERS:
 %   - Emmanuel Basua, BSXEMM001
-%   - Matteo Buxman, B
+%   - Matteo Buxman, BXMMAT001
 
+
+%% ========================================================================
+%  PART 3: Testing and Analysis 
+%  ========================================================================
+% had to move part 3 up because of matlab structure stuff
+% currently this just prints times and speed up to terminal still need to
+% do other parts of part 3
+
+function run_analysis()
+    % TODO1: Load all sample images
+    img_folder = 'sample_images/';
+    img_list = {'image_128x128.png', 'image_256x256.png', 'image_512x512.png','image_1024x1024.png', 'image_2048x2048.png'};
+    
+    fprintf('%-20s | %-12s | %-12s | %-8s | %-8s\n','Image Name', 'Manual (s)', 'Builtin (s)', 'Speedup', 'Match');
+    fprintf('%s\n', repmat('_', 1, 70));
+
+    for k = 1:length(img_list)
+        img_path = fullfile(img_folder, img_list{k});
+        if ~exist(img_path, 'file') 
+            continue; 
+        end
+
+        % Measure Manual execution
+        tic;
+        out_manual = my_conv2(img_path);
+        t_manual = toc;
+
+        % Measure Built-in execution
+        tic;
+        out_builtin = inbuilt_conv2(img_path);
+        t_builtin = toc;
+
+        % Calculations
+        speedup = t_manual / t_builtin;
+        difference = max(abs(out_manual(:) - out_builtin(:)));
+        is_correct = difference < 1e-10;
+
+        fprintf('%-20s | %-12.4f | %-12.4f | %-8.2fx | %-8s\n', img_list{k}, t_manual, t_builtin, speedup, string(is_correct));
+    end
+end
 
 %% ========================================================================
 %  PART 1: Manual 2D Convolution Implementation
 %  ========================================================================
-%
-% REQUIREMENT: You may NOT use built-in convolution functions (conv2, imfilter, etc.)
-
-% TODO: Implement manual 2D convolution using Sobel Operator(Gx and Gy)
-% output - Convolved image result (grayscale)
-function output = my_conv2(varargin) %Add necessary input arguments
-
-
-img = imread('sample_images/image_1024x1024.png');
-if size(img, 3) == 3
-    img = rgb2gray(img);
-end
-img = double(img); 
-[rows, cols] = size(img);
-
-Gx_k = [-1 0 1; -2 0 2; -1 0 1];
-Gy_k = [-1 -2 -1;  0 0 0;  1 2 1];
-Gx = zeros(rows, cols);
-Gy = zeros(rows, cols);
-
-img_p = padarray(img, [1 1], 0);
-
-
-for i = 1:rows
-    for j = 1:cols
-        superposed = img_p(i:i+2, j:j+2); 
-        Gx(i, j) = sum(sum(superposed .* Gx_k));
-        Gy(i, j) = sum(sum(superposed .* Gy_k));
+function output = my_conv2(img_path) 
+    img = imread(img_path);
+    if size(img, 3) == 3 % this can be removed cause we know the images are greyscale already
+        img = rgb2gray(img); 
     end
+    img = double(img); 
+    [rows, cols] = size(img);
+
+    Gx_k = [-1 0 1; -2 0 2; -1 0 1];
+    Gy_k = [-1 -2 -1;  0 0 0;  1 2 1];
+
+    Gx = zeros(rows, cols);
+    Gy = zeros(rows, cols);
+    img_p = padarray(img, [1 1], 0);
+
+    %manual convo
+    for i = 1:rows
+        for j = 1:cols
+            superposed = img_p(i:i+2, j:j+2); 
+            Gx(i, j) = sum(sum(superposed .* Gx_k));
+            Gy(i, j) = sum(sum(superposed .* Gy_k));
+        end
+    end
+    output = sqrt(Gx.^2 + Gy.^2);
 end
-
-G_mag = sqrt(Gx.^2 + Gy.^2);
-
-subplot(1,3,1); imshow(abs(Gx), []); title('Horizontal (Gx)');
-subplot(1,3,2); imshow(abs(Gy), []); title('Vertical (Gy)');
-subplot(1,3,3); imshow(G_mag, []); title('Final Sobel Magnitude');
-end
-
 
 %% ========================================================================
 %  PART 2: Built-in 2D Convolution Implementation
 %  ========================================================================
-%   
-% REQUIREMENT: You MUST use the built-in conv2 function
+function output = inbuilt_conv2(img_path) % same as manual just used function for convolution
+    img = imread(img_path);
+    if size(img, 3) == 3
+        img = rgb2gray(img); 
+    end
+    img = double(img); 
+   
+    Gx_k = [-1 0 1; -2 0 2; -1 0 1];
+    Gy_k = [-1 -2 -1;  0 0 0;  1 2 1];
 
-% TODO: Use conv2 to perform 2D convolution
-% output - Convolved image result (grayscale)
-function output = inbuilt_conv2(varargin) %Add necessary input arguments
+    Gx = conv2(img, Gx_k, 'same');
+    Gy = conv2(img, Gy_k, 'same');
 
-end
-
-
-%% ========================================================================
-%  PART 3: Testing and Analysis
-%  ========================================================================
-%
-% Compare the performance of manual 2D convolution (my_conv2) with MATLAB's
-% built-in conv2 function (inbuilt_conv2).
-
-function run_analysiss()
-    % TODO1:
-    % Load all the sample images from the 'sample_images' folder
-    
-    % TODO2:
-    % Define edge detection kernels (Sobel kernel)
-    
-    % TODO3:
-    % For each image, perform the following:
-    %   a. Measure execution time of my_conv2
-    %   b. Measure execution time of inbuilt_conv2
-    %   c. Compute speedup ratio
-    %   d. Verify output correctness (compare results)
-    %   e. Store results (image name, time_manual, time_builtin, speedup)
-    %   f. Plot and compare results
-    %   g. Visualise the edge detection results(Optional)
-    
-    
-    
+    output = sqrt(Gx.^2 + Gy.^2);
 end
