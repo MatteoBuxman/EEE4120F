@@ -6,7 +6,7 @@
 %
 % MEMBERS:
 %   - Emmanuel Basua, BSXEMM001
-%   - Matteo Buxman, BXMMAT001
+%   - Matteo Buxman, B
 
 
 %% ========================================================================
@@ -44,7 +44,10 @@ for i = 1:rows
 end
 
 G_mag = sqrt(Gx.^2 + Gy.^2);
-imshow(G_mag, []); title('Final Sobel Magnitude');
+
+subplot(1,3,1); imshow(abs(Gx), []); title('Horizontal (Gx)');
+subplot(1,3,2); imshow(abs(Gy), []); title('Vertical (Gy)');
+subplot(1,3,3); imshow(G_mag, []); title('Final Sobel Magnitude');
 end
 
 
