@@ -45,7 +45,7 @@ function run_analysis()
         difference = max(abs(out_manual(:) - out_builtin(:)));
         is_correct = difference < 1e-10;
 
-        fprintf('%-20s | %-12.4f | %-12.4f | %-8.2fX | %-8s\n', img_list{k}, t_manual, t_builtin, speedup, string(is_correct));
+        fprintf('%-20s | %-12.4f | %-12.4f | %-8.2fx | %-8s\n', img_list{k}, t_manual, t_builtin, speedup, string(is_correct));
     end
 end
 
