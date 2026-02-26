@@ -1,0 +1,120 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{siunitx}
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+\begin{document}
+
+\title{EEE4120F Practical 1: 2D Convolution Performance Analysis}
+
+\author{\IEEEauthorblockN{Matteo Buxman}
+\IEEEauthorblockA{BXMMAT001}
+\and
+\IEEEauthorblockN{Emmanuel Basua}
+\IEEEauthorblockA{BSXEMM003}
+}
+
+\maketitle
+
+\begin{abstract}
+This report presents a comparative analysis of manual and built-in 2D convolution implementations for edge detection using the Sobel operator. A nested-loop implementation was compared against MATLAB's optimized \texttt{conv2()} function across five image sizes ranging from 128$\times$128 to 2048$\times$2048 pixels. Results demonstrate significant performance differences, with the built-in implementation achieving speedups of 9--86$\times$ over the manual approach (average 45$\times$), highlighting the importance of optimized libraries in image processing applications.
+\end{abstract}
+
+\section{Introduction}
+Two-dimensional convolution is a fundamental operation in image processing, used extensively for filtering, edge detection, and feature extraction. The operation involves sliding a kernel (filter) across an image and computing weighted sums at each position. While conceptually straightforward, the computational complexity of $O(n^2 \cdot k^2)$ for an $n \times n$ image with a $k \times k$ kernel makes efficient implementation critical for practical applications.
+
+The Sobel operator, used for edge detection, consists of two 3$\times$3 kernels that detect horizontal ($G_x$) and vertical ($G_y$) gradients:
+\begin{equation}
+G_x = \begin{bmatrix} -1 & 0 & +1 \\ -2 & 0 & +2 \\ -1 & 0 & +1 \end{bmatrix}, \quad
+G_y = \begin{bmatrix} -1 & -2 & -1 \\ 0 & 0 & 0 \\ +1 & +2 & +1 \end{bmatrix}
+\end{equation}
+
+The gradient magnitude at each pixel is traditionally computed as $G = \sqrt{G_x^2 + G_y^2}$. However, to avoid the computationally expensive square root operation, an approximation is commonly used:
+\begin{equation}
+G \approx |G_x| + |G_y|
+\end{equation}
+This approximation is faster and produces visually similar edge detection results, though it can overestimate diagonal edges by up to 41\%.
+
+This practical investigates the performance gap between a manual nested-loop convolution implementation and MATLAB's built-in \texttt{conv2()} function, demonstrating why optimized libraries are essential for computationally intensive tasks.
+
+\section{Methodology}
+
+\subsection{Manual Implementation}
+The manual convolution function implements the Sobel operator using nested \texttt{for} loops. The input image is first converted to grayscale (if necessary) and cast to \texttt{double} precision. Zero-padding of one pixel is applied using \texttt{padarray()} to handle boundary conditions, producing output of the same dimensions as the input (`same' mode). For each pixel position $(i,j)$, a 3$\times$3 region is extracted and element-wise multiplied with each Sobel kernel, then summed to produce $G_x$ and $G_y$ values. The gradient magnitude is computed using the absolute value approximation $G = |G_x| + |G_y|$ to avoid the expensive \texttt{sqrt()} operation.
+
+\subsection{Built-in Implementation}
+The built-in implementation uses MATLAB's \texttt{conv2()} function with the \texttt{'same'} parameter, which also applies zero-padding to maintain input dimensions. This function is implemented in optimized C/Fortran code and leverages vectorization and SIMD instructions. The same absolute value approximation is used for gradient magnitude computation to ensure a fair comparison.
+
+\subsection{Testing Procedure}
+Five grayscale test images of sizes 128$\times$128, 256$\times$256, 512$\times$512, 1024$\times$1024, and 2048$\times$2048 pixels were processed. For timing accuracy, each implementation was executed five times per image, with the first run excluded as warm-up. Execution time was measured using \texttt{tic/toc}, and the mean of the remaining four runs was recorded. Output correctness was verified by computing the maximum absolute difference between implementations, with a tolerance of $10^{-10}$.
+
+\section{Results}
+
+Table~\ref{tab:results} presents the execution times and speedup factors for each image size. The built-in implementation consistently outperformed the manual implementation across all image sizes.
+
+\begin{table}[h]
+\centering
+\caption{Performance Comparison Results}
+\label{tab:results}
+\begin{tabular}{@{}lrrrc@{}}
+\toprule
+Image Size & Manual (s) & Built-in (s) & Speedup & Match \\
+\midrule
+128$\times$128 & 0.0114 & 0.0012 & 9.37$\times$ & True \\
+256$\times$256 & 0.0420 & 0.0019 & 22.33$\times$ & True \\
+512$\times$512 & 0.1647 & 0.0042 & 39.17$\times$ & True \\
+1024$\times$1024 & 0.6508 & 0.0097 & 67.35$\times$ & True \\
+2048$\times$2048 & 2.5921 & 0.0301 & 86.22$\times$ & True \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The speedup factor increases with image size, ranging from approximately 9$\times$ for the smallest image to 86$\times$ for the largest, with an average speedup of 44.89$\times$. Both implementations produced identical outputs within floating-point tolerance, confirming correctness.
+
+Figure~\ref{fig:edges} shows the edge detection results for each test image, demonstrating that the Sobel operator successfully identifies edges in the input images. Figure~\ref{fig:performance} illustrates the performance comparison between implementations.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\columnwidth]{edge_detection_results.png}
+\caption{Sobel edge detection results: original images (top row) and corresponding edge-detected outputs (bottom row).}
+\label{fig:edges}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\columnwidth]{performance_analysis.png}
+\caption{Performance analysis: (left) execution time comparison, (center) speedup factor vs image size, (right) log-log scale timing showing algorithmic complexity.}
+\label{fig:performance}
+\end{figure}
+
+\section{Discussion}
+The substantial performance difference between implementations can be attributed to several factors:
+
+\textbf{Interpreter Overhead:} MATLAB is an interpreted language, and each loop iteration incurs overhead for bounds checking, variable lookup, and instruction interpretation. For a 2048$\times$2048 image, this amounts to over 4 million loop iterations.
+
+\textbf{Compiled Code:} The \texttt{conv2()} function is implemented in pre-compiled C/Fortran, bypassing interpreter overhead entirely.
+
+\textbf{Vectorization and SIMD:} Built-in functions utilize Single Instruction Multiple Data (SIMD) instructions (SSE, AVX), processing multiple pixels per CPU cycle, whereas the manual loop processes one pixel at a time.
+
+\textbf{Memory Access Patterns:} Optimized implementations are designed for cache efficiency, while the manual implementation's repeated 3$\times$3 region extraction creates suboptimal memory access patterns.
+
+The increasing speedup with image size suggests that the fixed overhead of calling \texttt{conv2()} becomes proportionally smaller for larger images, while the $O(n^2)$ loop overhead in the manual implementation dominates.
+
+\textbf{Impact of Padding Modes on Edge Detection:} The choice of boundary handling significantly affects edge detection quality. Zero-padding (used in `same' mode) introduces artificial edges at image boundaries, as the transition from actual pixel values to zeros creates false gradients. Alternative approaches include: (1) \textit{replicate padding}, which extends boundary pixels and produces smoother edges but may miss true edges at borders; (2) \textit{symmetric/mirror padding}, which reflects the image at boundaries and generally produces the most natural results; and (3) \textit{valid mode}, which avoids boundary artifacts entirely by only computing where the kernel fully overlaps, at the cost of reduced output size. For this practical, zero-padding was chosen to match \texttt{conv2()}'s default `same' mode behaviour, accepting minor boundary artifacts in exchange for output size preservation.
+
+\section{Conclusion}
+This practical demonstrated the critical importance of using optimized library functions for computationally intensive image processing operations. The manual nested-loop implementation, while functionally correct, was 9--86$\times$ slower than MATLAB's built-in \texttt{conv2()} function. These results underscore that understanding algorithmic concepts (as implemented manually) is valuable for learning, but production applications should leverage optimized libraries that exploit low-level hardware capabilities. Future work could explore GPU-accelerated convolution or FFT-based approaches for even larger performance gains.
+
+\begin{thebibliography}{00}
+\bibitem{gonzalez} R. C. Gonzalez and R. E. Woods, \textit{Digital Image Processing}, 4th ed. Pearson, 2018.
+\bibitem{mathworks} MathWorks, ``conv2 - 2-D convolution,'' MATLAB Documentation, 2024. [Online]. Available: https://www.mathworks.com/help/matlab/ref/conv2.html
+\bibitem{sobel} I. Sobel, ``An Isotropic 3x3 Image Gradient Operator,'' Presentation at Stanford A.I. Project, 1968.
+\end{thebibliography}
+
+\end{document}
