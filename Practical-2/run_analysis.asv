@@ -41,7 +41,7 @@ function run_analysis()
 
         save_path = sprintf('output/serial_%s.png', name);
 
-        mandelbrot_sequential(width, height, max_iterations, name, save_path);
+        mandelbrot_sequential(width, height, max_iterations, save_path);
     end
     
 end
@@ -58,17 +58,16 @@ function mandelbrot_plot(image_data, resolution_name, save_path)
         mkdir(dir_path);
     end
 
-    % Map iteration counts directly to pixels via hot colormap
-    normalized = mat2gray(image_data);
-    cmap        = hot(256);
-    indices     = gray2ind(normalized, 256);
-    rgb         = ind2rgb(indices, cmap);
+    figure('Visible', 'off');
+    imagesc(image_data);
+    colormap(hot);
+    colorbar;
+    axis image off;
+    title(sprintf('Mandelbrot Set — %s', resolution_name),'FontSize', 12, 'FontWeight', 'bold');
+    saveas(gcf, save_path);
+    close(gcf);
 
-    imwrite(rgb, save_path);
-
-    [height, width] = size(image_data);
-    fprintf('Saved %s: %dx%d px (%.2f MP) -> %s\n', ...
-        resolution_name, width, height, (width*height)/1e6, save_path);
+    fprintf('Saved Mandelbrot image: %s\n', save_path);
 end
 
 %% ========================================================================
@@ -76,7 +75,9 @@ end
 %  ========================================================================`
 %
 %TODO: Implement serial Mandelbrot set computation function
-function mandelbrot_sequential(x_res, y_res, max_iterations, resolution_name, save_path)
+function mandelbrot_sequential(x_res, y_res, max_iterations, save_path)
+
+    
 
     % --- Complex plane bounds ---
     x_range = linspace(-2, 0.5, x_res);   % real axis
