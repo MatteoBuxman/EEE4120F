@@ -1,13 +1,13 @@
-function mandelbrot_sequential()
-
-    % --- Parameters ---
-    max_iterations = 1000;
-    resolution_name = 'SVGA';
-    save_path = 'output/SVGA.png';
+%% ========================================================================
+%  PART 2: Serial Mandelbrot Set Computation
+%  ========================================================================`
+%
+%TODO: Implement serial Mandelbrot set computation function
+function mandelbrot_sequential(x_res, y_res, max_iterations, resolution_name, save_path)
 
     % --- Complex plane bounds ---
-    x_range = linspace(-2, 0.5, 800);   % real axis
-    y_range = linspace(-1.2, 1.2, 600);  % imaginary axis
+    x_range = linspace(-2, 0.5, x_res);   % real axis
+    y_range = linspace(-1.2, 1.2, y_res);  % imaginary axis
 
     % --- Compute iteration grid ---
     iteration_grid = compute_mandelbrot(x_range, y_range, max_iterations);
@@ -16,7 +16,7 @@ function mandelbrot_sequential()
     mandelbrot_plot(iteration_grid, resolution_name, save_path);
 end
 
-
+%Helper function for the mandelbrot_sequential function
 function iteration_grid = compute_mandelbrot(x_range, y_range, max_iterations)
     % Computes the escape-time iteration count for each point in the grid
 

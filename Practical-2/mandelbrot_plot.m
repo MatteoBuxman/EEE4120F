@@ -1,3 +1,8 @@
+%% ========================================================================
+%  PART 1: Mandelbrot Set Image Plotting and Saving
+%  ========================================================================
+%
+% TODO: Implement Mandelbrot set plotting and saving function
 function mandelbrot_plot(image_data, resolution_name, save_path)
 
     [dir_path, ~, ~] = fileparts(save_path);
@@ -5,14 +10,15 @@ function mandelbrot_plot(image_data, resolution_name, save_path)
         mkdir(dir_path);
     end
 
-    figure('Visible', 'off');
-    imagesc(image_data);
-    colormap(hot);
-    colorbar;
-    axis image off;
-    title(sprintf('Mandelbrot Set — %s', resolution_name),'FontSize', 12, 'FontWeight', 'bold');
-    saveas(gcf, save_path);
-    close(gcf);
+    % Map iteration counts directly to pixels via hot colormap
+    normalized = mat2gray(image_data);
+    cmap        = hot(256);
+    indices     = gray2ind(normalized, 256);
+    rgb         = ind2rgb(indices, cmap);
 
-    fprintf('Saved Mandelbrot image: %s\n', save_path);
+    imwrite(rgb, save_path);
+
+    [height, width] = size(image_data);
+    fprintf('Saved %s: %dx%d px (%.2f MP) -> %s\n', ...
+        resolution_name, width, height, (width*height)/1e6, save_path);
 end
