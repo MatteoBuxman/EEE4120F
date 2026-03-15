@@ -1,0 +1,402 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{siunitx}
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+\begin{document}
+
+\title{EEE4120F Practical 2: Introduction to MATLAB Parallel
+Computing Toolkit (PCT)}
+
+\author{\IEEEauthorblockN{Matteo Buxman}
+\IEEEauthorblockA{BXMMAT001}
+\and
+\IEEEauthorblockN{Emmanuel Basua}
+\IEEEauthorblockA{BSXEMM001}
+}
+
+\maketitle
+
+\begin{abstract}
+This report analyses the performance of serial and parallel Mandelbrot set
+generation in MATLAB using the Parallel Computing Toolbox (PCT).  Eight
+resolutions (SVGA through 8K~UHD) were benchmarked with a fixed iteration
+limit of 1\,000 and worker pools of 2--6.  Speedup, efficiency, and
+Amdahl's Law serial-fraction estimates are reported.  Results show that
+meaningful speedup requires sufficiently large problem sizes, with best
+observed speedup of $2.46\times$ at 8K, while small resolutions suffer from
+parallelisation overhead.  Empirically fitted serial fractions decrease from
+60\% (SVGA) to 37--38\% (5K/8K), consistent with Gustafson's Law.
+\end{abstract}
+
+\section{Introduction}
+Modern multi-core processors offer significant performance potential when
+software exploits parallelism.  MATLAB's Parallel Computing Toolbox (PCT)
+provides the \texttt{parfor} construct to distribute loop iterations across
+a pool of workers without explicit thread management.
+
+The Mandelbrot set is an ideal benchmark for evaluating parallel performance:
+each pixel is computed independently, making the problem embarrassingly
+parallel.  However, per-pixel computational cost varies widely---pixels near
+the set boundary iterate up to the maximum count, while exterior pixels escape
+in very few iterations---creating a natural load-balancing challenge that
+tests how well the parallelisation framework handles heterogeneous workloads.
+
+Formally, the set is defined by iterating $f_c(z) = z^2 + c$ from $z = 0$
+for each point $c \in \mathbb{C}$ in the complex plane.  A point belongs to
+the set if the orbit $\{z_n\}$ remains bounded; in practice, a pixel is
+coloured by the number of iterations before $|z| > 2$, capped at
+\texttt{max\_iterations} = 1\,000.
+
+This practical aims to (i)~implement serial and parallel Mandelbrot
+generators in MATLAB, (ii)~benchmark both across eight standard resolutions
+from SVGA to 8K~UHD, (iii)~quantify speedup and efficiency as functions of
+resolution and worker count, and (iv)~estimate the parallelisable fraction
+of the workload via Amdahl's Law and observe how this fraction changes with
+problem size.
+
+\section{Methodology}
+
+\subsection{Algorithm}
+
+The complex plane is sampled over the standard Mandelbrot viewing region:
+real axis $x \in [-2.0,\,0.5]$, imaginary axis $y \in [-1.2,\,1.2]$.
+Each pixel at grid position $(col, row)$ maps to a complex constant
+$c = x_0 + iy_0$.  The escape-time algorithm iterates
+\begin{equation}
+  z_{n+1} = z_n^2 + c, \quad z_0 = 0
+\end{equation}
+until $|z_n|^2 > 4$ or the iteration count reaches \texttt{max\_iterations}
+= 1\,000.  The resulting iteration grid is colour-mapped using MATLAB's
+\texttt{hot} colormap and saved as a PNG via \texttt{imwrite}.
+
+\subsection{Serial Implementation}
+
+\texttt{mandelbrot\_sequential.m} computes the Mandelbrot set using two
+nested \texttt{for} loops: the outer loop iterates over image rows
+(imaginary axis) and the inner loop over columns (real axis).  The
+computation is isolated in a helper function \texttt{compute\_mandelbrot},
+separating the numerical kernel from the I/O layer.  This design provides a
+clean, deterministic baseline: no worker overhead, no inter-process
+communication, and fully deterministic execution order, ensuring that all
+parallel speedup measurements are relative to a well-characterised reference.
+
+\subsection{Parallel Implementation}
+
+\texttt{mandelbrot\_parallel.m} replaces the outer row loop with
+\texttt{parfor}, allowing each worker to independently compute one or more
+rows of the iteration grid.  The inner column loop remains a standard
+\texttt{for} loop, as MATLAB does not support nested \texttt{parfor}.
+
+Correct variable classification is essential for both correctness and
+performance under PCT:
+\begin{itemize}
+  \item \textbf{Sliced output} --- \texttt{iteration\_grid(row,:)} is
+        written by exactly one worker per iteration, satisfying the
+        sliced-variable requirement and preventing race conditions.
+  \item \textbf{Sliced input} --- \texttt{y\_range(row)} is read as a
+        scalar per iteration; MATLAB extracts the relevant slice for each
+        worker automatically.
+  \item \textbf{Broadcast variables} --- \texttt{x\_range} and
+        \texttt{max\_iterations} are read-only and transmitted once to all
+        workers at pool initialisation, minimising repeated data transfer.
+  \item \textbf{Temporary variables} --- \texttt{x0}, \texttt{y0},
+        \texttt{x}, \texttt{y}, and \texttt{iteration} are loop-private;
+        each worker maintains its own copy with no synchronisation required.
+\end{itemize}
+
+A local accumulator \texttt{row\_result} buffers the inner-loop output
+before assigning to the sliced grid, avoiding repeated indexed writes across
+the process boundary and improving cache locality per worker.
+
+Worker pool management is handled in \texttt{run\_analysis.m}: a
+\texttt{parpool} is created (or resized) \emph{before} timing begins,
+ensuring that pool spin-up latency---typically 5--15\,s---is excluded from
+all reported execution times.  Pools are reused across resolutions within
+the same worker-count sweep to reflect realistic sustained usage.
+
+\subsection{Timing and Metrics}
+
+All timings use MATLAB's \texttt{tic}/\texttt{toc}, wrapping only the
+compute-and-save function call.  Serial runs precede all parallel runs so
+that their wall-clock times serve as the reference denominator for speedup.
+Speedup and efficiency are defined as:
+\begin{equation}
+  S = \frac{T_{\text{serial}}}{T_{\text{parallel}}}, \qquad
+  E = \frac{S}{P} \times 100\%
+\end{equation}
+
+Amdahl's Law gives the theoretical maximum speedup with $P$ workers when a
+fraction $f$ of the workload is parallelisable:
+\begin{equation}
+  S_{\max} = \frac{1}{(1 - f) + \dfrac{f}{P}}
+  \label{eq:amdahl_s}
+\end{equation}
+Rearranging to solve for $f$ given measured speedup $S$ at $P$ workers:
+\begin{equation}
+  f = \frac{1 - \tfrac{1}{S}}{1 - \tfrac{1}{P}}
+  \label{eq:amdahl_f}
+\end{equation}
+For each resolution, $f$ is computed at every worker count
+$P \in \{2,\ldots,6\}$ and averaged, yielding an empirical per-resolution
+estimate that accounts for measurement variability across different degrees
+of parallelism.
+
+\section{Results}
+
+\subsection{Baseline Execution Time}
+
+Table~\ref{tab:serial} presents the serial baseline execution times across
+all eight resolutions.  These serve as the reference denominator for all
+parallel performance calculations.
+
+\begin{table}[h]
+\centering
+\caption{Serial (baseline) execution times}
+\label{tab:serial}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabular}{@{}lrr@{}}
+\toprule
+\textbf{Resolution} & \textbf{Pixels (MP)} & \textbf{Time (s)} \\
+\midrule
+SVGA (800$\times$600)      & 0.48  & 0.67  \\
+HD (1280$\times$720)       & 0.92  & 0.83  \\
+FHD (1920$\times$1080)     & 2.07  & 1.86  \\
+2K (2048$\times$1080)      & 2.21  & 1.93  \\
+QHD (2560$\times$1440)     & 3.69  & 3.30  \\
+4K UHD (3840$\times$2160)  & 8.29  & 7.32  \\
+5K (5120$\times$2880)      & 14.75 & 13.20 \\
+8K UHD (7680$\times$4320)  & 33.18 & 30.10 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Execution time scales approximately linearly with pixel count, confirming
+$O(N)$ complexity with respect to resolution.  The 8K image (33.18\,MP)
+takes 30.10\,s, roughly $45\times$ longer than SVGA (0.48\,MP, 0.67\,s).
+The near-linear relationship between megapixels and execution time indicates
+that per-pixel computation cost is approximately uniform when averaged
+across the image, despite the per-pixel variation inherent to the
+escape-time algorithm.
+
+\subsection{Speedup}
+
+Figure~\ref{fig:speedup} shows measured speedup versus worker count for all
+eight resolutions, with Amdahl's Law theoretical curves (dashed) overlaid.
+The theoretical curves are generated using~(\ref{eq:amdahl_s}) with
+per-resolution parallel fractions empirically fitted via~(\ref{eq:amdahl_f}).
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\linewidth]{figures/speedup_vs_workers.png}
+\caption{Measured speedup vs.\ worker count with Amdahl's Law theoretical
+predictions (dashed) using empirically fitted parallel fractions per
+resolution.  The white dashed line represents ideal linear scaling
+($S = P$).}
+\label{fig:speedup}
+\end{figure}
+
+All resolutions fall well below the ideal $S = P$ line.  The best observed
+speedup is $2.46\times$ at 8K with 6 workers, against a theoretical ideal
+of $6\times$.  Larger resolutions consistently achieve higher speedup as
+the computation-to-overhead ratio improves: at 6 workers, speedup increases
+monotonically from $1.56\times$ (SVGA) to $2.46\times$ (8K).
+
+SVGA is the most striking outlier---it peaks at $1.61\times$ (at 4 workers)
+and shows performance degradation beyond that point.  At 6 workers, SVGA
+achieves only $1.56\times$, meaning the additional two workers contribute
+negative marginal speedup.  This confirms that at sub-second workloads
+(0.67\,s serial), \texttt{parfor} scheduling cost dominates.
+
+The Amdahl's Law curves fit the measured data closely across most
+resolutions, validating the empirical parallel-fraction estimation approach.
+Deviations at low worker counts for small resolutions (e.g.\ SVGA, HD) arise
+from measurement noise at short runtimes, where OS scheduling jitter
+represents a larger fraction of total execution time.
+
+\subsection{Parallel Efficiency}
+
+Figure~\ref{fig:efficiency} shows parallel efficiency across resolutions
+for each worker count.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\linewidth]{figures/efficiency_vs_resolution.png}
+\caption{Parallel efficiency vs.\ resolution for 2--6 workers.  The dashed
+line at 100\% represents ideal scaling.}
+\label{fig:efficiency}
+\end{figure}
+
+Efficiency ranges from approximately 26\% (SVGA at 6 workers) to 67\%
+(HD at 2 workers), consistently below the 100\% ideal.  Two clear trends
+are visible.  First, efficiency generally improves with resolution as the
+per-worker workload grows relative to the fixed parallelisation overhead,
+confirming that larger problem sizes amortise communication costs more
+effectively.  Second, efficiency decreases with worker count---a direct
+consequence of Amdahl's Law, as adding workers dilutes the parallel portion
+while the serial component remains constant.
+
+The 4K~UHD resolution achieves the best efficiency at higher worker counts
+(46.0\% at 5 workers), suggesting its problem size strikes the best balance
+between amortising \texttt{parfor} overhead and avoiding memory bandwidth
+saturation.  At 8K, despite having the highest speedup, efficiency at 6
+workers (41.0\%) is lower than 4K's, hinting that memory contention between
+workers begins to limit scaling at very large grid sizes where the iteration
+matrix exceeds 250\,MB.
+
+\subsection{Amdahl's Law --- Parallel Fraction}
+
+Figure~\ref{fig:par_frac} shows the empirically estimated parallel fraction
+$f$ for each resolution, computed by averaging~(\ref{eq:amdahl_f}) across
+all five worker counts $P \in \{2,\ldots,6\}$.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\linewidth]{figures/amdahls_law_serial_fraction.png}
+\caption{Estimated serial fraction $(1-f)$ per resolution, fitted from
+measured speedup data using Amdahl's Law~(\ref{eq:amdahl_f}).  Lower values
+indicate a larger parallelisable share of the workload.}
+\label{fig:par_frac}
+\end{figure}
+
+The serial fraction $(1-f)$ is highest at SVGA (60.1\%), where
+parallelisation overhead dominates, then drops sharply to the 40--44\%
+range for mid-range resolutions (HD through QHD), before settling at
+36.8\% (5K) and 38.0\% (8K).  The overall trend from 60\% down to
+${\sim}37\text{--}38\%$ is significant: under a strict interpretation of
+Amdahl's Law, $f$ should be a fixed property of the algorithm, independent
+of problem size.  The observed decrease---particularly the large gap between
+SVGA and the remaining resolutions---reveals that what appears as ``serial''
+overhead is dominated by \emph{fixed-cost} components (\texttt{parfor}
+dispatch, inter-process data transfer, and the serialised \texttt{imwrite}
+call) rather than an inherently sequential portion of the Mandelbrot
+computation itself.
+
+As resolution increases, these fixed costs become a smaller fraction of
+total runtime, effectively increasing the parallelisable share.  This
+behaviour is consistent with \textbf{Gustafson's Law}, which predicts that
+the parallel fraction of a workload grows with problem size because the
+serial component remains constant while total work scales.  Gustafson's
+scaled speedup is defined as:
+\begin{equation}
+  S_G = P + (1 - P) \cdot (1 - f)
+  \label{eq:gustafson}
+\end{equation}
+where $(1-f)$ is the serial fraction at a given problem size.  Unlike
+Amdahl's Law, which assumes a fixed total workload and predicts diminishing
+returns from adding processors, Gustafson's model captures the practical
+reality that users typically scale problem size with available resources,
+making parallelism increasingly effective for larger workloads.
+
+\section{Discussion}
+
+\textbf{Sub-linear speedup and the serial bottleneck.}
+Across all resolutions, measured speedup peaks at $2.46\times$ with 6
+workers, well below the theoretical ideal of $6\times$.  This implies that
+a significant serial component persists throughout execution.  The primary
+contributors are: (i)~the serialised image write in
+\texttt{mandelbrot\_plot}, which cannot overlap with parallel computation;
+(ii)~\texttt{parfor} row-distribution and result-collection overhead, where
+MATLAB must coordinate work assignment and gather partial results from each
+worker; and (iii)~inter-process memory copies of broadcast variables,
+particularly \texttt{x\_range}.  At 8K, the estimated serial fraction of
+38.0\% sets a theoretical Amdahl ceiling of ${\sim}2.6\times$ even with
+infinitely many workers---a hard limit that cannot be overcome without
+restructuring the serial components themselves.
+
+\textbf{Overhead dominance at small resolutions.}
+SVGA is the most instructive case: its best speedup of $1.61\times$ at 4
+workers demonstrates that at sub-second workloads, \texttt{parfor} fixed
+costs (worker dispatch, row slicing, result aggregation) consume a
+disproportionate fraction of total runtime.  Beyond 4 workers, each
+additional worker adds more coordination overhead than it saves in
+computation, yielding \emph{negative} marginal speedup.  This underscores
+a fundamental principle of parallel computing: parallelisation is only
+beneficial when the granularity of the parallelisable work is large enough
+to amortise the fixed cost of distributing and collecting that work.
+
+\textbf{Scalability with problem size.}
+The decreasing serial fraction with resolution
+(Fig.~\ref{fig:par_frac})---from 60.1\% at SVGA to ${\sim}37\text{--}38\%$
+at 5K and 8K---demonstrates that Amdahl's Law, while accurate for predicting
+speedup at a fixed problem size, provides an overly pessimistic view of
+parallel scalability when problem size is allowed to grow.  The data aligns
+with Gustafson's Law: increasing resolution grows the parallel workload
+while leaving the fixed overhead largely unchanged, yielding progressively
+better speedups and higher effective parallel fractions.  The fact that the
+serial fraction plateaus around 37--38\% for the largest resolutions
+suggests that an irreducible serial component (likely the serialised image
+write) persists even after \texttt{parfor} overhead is fully amortised.
+
+\textbf{Load imbalance and scheduling.}
+The Mandelbrot set has inherently unequal per-pixel cost: pixels near the
+set boundary iterate to \texttt{max\_iterations} = 1\,000, while exterior
+pixels escape in fewer than 10 iterations.  Row-based distribution does not
+account for this variation---rows intersecting the main cardioid and period-2
+bulb are disproportionately expensive.  MATLAB's \texttt{parfor} mitigates
+this through dynamic scheduling, dispatching rows to workers as they become
+available rather than pre-assigning fixed blocks.  This contributes to the
+better-than-naive speedups observed, but for maximum efficiency, a
+finer-grained work-stealing scheduler operating at the pixel or tile level
+would better balance the heterogeneous workload.
+
+\textbf{Limitations.}
+All results are single-run measurements without repeated trials or
+statistical averaging.  Transient OS activity, MATLAB JIT warm-up effects,
+and memory allocation variability introduce noise that is not filtered out.
+Additionally, the experiment was limited to 6 workers by available hardware;
+testing with higher worker counts would better reveal whether the measured
+speedup converges to the Amdahl ceiling or whether additional scaling
+is achievable.
+
+\section{Conclusion}
+
+Three key findings emerge from this analysis:
+
+\begin{enumerate}
+  \item \textbf{Parallelism is resolution-dependent.}  Meaningful speedup
+        ($>2\times$) requires at least Full~HD resolution (2.07\,MP).  At
+        SVGA (0.48\,MP), \texttt{parfor} overhead exceeds the computational
+        benefit, and adding workers beyond 4 actively degrades performance.
+
+  \item \textbf{Speedup is bounded by the serial fraction.}  The best
+        observed speedup of $2.46\times$ at 8K with 6 workers corresponds
+        to a serial fraction of 38.0\% under Amdahl's Law, setting a
+        hard theoretical ceiling of ${\sim}2.6\times$ regardless of worker
+        count.  The serial bottleneck is primarily the serialised image
+        write and \texttt{parfor} coordination overhead.
+
+  \item \textbf{Gustafson's Law applies at scale.}  The empirically fitted
+        serial fraction decreases from 60.1\% (SVGA) to ${\sim}37\text{--}38\%$
+        (5K/8K), demonstrating that fixed overheads become a smaller share
+        of total work as problem size grows.  The plateau at
+        ${\sim}37\text{--}38\%$ for the largest resolutions indicates an
+        irreducible serial component, but parallelism nonetheless becomes
+        increasingly effective as resolution scales.
+\end{enumerate}
+
+Potential improvements include replacing \texttt{imwrite} with asynchronous
+I/O via \texttt{parfeval} to overlap file writes with computation,
+vectorising the inner column loop using MATLAB array operations to reduce
+per-pixel loop overhead, and implementing tile-based work distribution for
+better load balancing across the Mandelbrot set boundary.
+
+\begin{thebibliography}{9}
+\bibitem{pct_tutorial}
+S.~Winberg and T.~Webb, ``MATLAB Parallel Computing Toolkit (PCT): A Practical
+Guide for Practical 2,'' EEE4120F High Performance Embedded Systems Reference
+Guide, University of Cape Town, 2026.
+
+\bibitem{pct_manual}
+S.~Winberg and T.~Webb, ``Practical 2: Introduction to MATLAB Parallel
+Computing Toolkit (PCT),'' EEE4120F High Performance Embedded Systems
+Practical Manual, University of Cape Town, 2026.
+\end{thebibliography}
+
+\end{document}
