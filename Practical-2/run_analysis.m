@@ -113,4 +113,9 @@ function run_analysis()
     % =============================================
     plot_graphs(resolution_names, image_sizes, time_serial, time_parallel, max_workers);
 
+    % =============================================
+    % LOAD BALANCE PROFILING (uses existing pool)
+    % =============================================
+    profile_load_balance(max_workers);
+
 end

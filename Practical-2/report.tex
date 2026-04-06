@@ -94,26 +94,13 @@ parallel speedup measurements are relative to a well-characterised reference.
 rows of the iteration grid.  The inner column loop remains a standard
 \texttt{for} loop, as MATLAB does not support nested \texttt{parfor}.
 
-Correct variable classification is essential for both correctness and
-performance under PCT:
-\begin{itemize}
-  \item \textbf{Sliced output} --- \texttt{iteration\_grid(row,:)} is
-        written by exactly one worker per iteration, satisfying the
-        sliced-variable requirement and preventing race conditions.
-  \item \textbf{Sliced input} --- \texttt{y\_range(row)} is read as a
-        scalar per iteration; MATLAB extracts the relevant slice for each
-        worker automatically.
-  \item \textbf{Broadcast variables} --- \texttt{x\_range} and
-        \texttt{max\_iterations} are read-only and transmitted once to all
-        workers at pool initialisation, minimising repeated data transfer.
-  \item \textbf{Temporary variables} --- \texttt{x0}, \texttt{y0},
-        \texttt{x}, \texttt{y}, and \texttt{iteration} are loop-private;
-        each worker maintains its own copy with no synchronisation required.
-\end{itemize}
-
-A local accumulator \texttt{row\_result} buffers the inner-loop output
-before assigning to the sliced grid, avoiding repeated indexed writes across
-the process boundary and improving cache locality per worker.
+Correct \texttt{parfor} variable classification ensures both correctness and
+performance: \texttt{iteration\_grid(row,:)} is a sliced output (one writer
+per iteration), \texttt{y\_range(row)} a sliced input, \texttt{x\_range} and
+\texttt{max\_iterations} are broadcast once to all workers, and loop
+temporaries (\texttt{x0}, \texttt{y0}, etc.) are worker-private.  A local
+accumulator \texttt{row\_result} buffers inner-loop output before the sliced
+assignment, improving cache locality per worker.
 
 Worker pool management is handled in \texttt{run\_analysis.m}: a
 \texttt{parpool} is created (or resized) \emph{before} timing begins,
@@ -178,12 +165,8 @@ QHD (2560$\times$1440)     & 3.69  & 3.30  \\
 \end{table}
 
 Execution time scales approximately linearly with pixel count, confirming
-$O(N)$ complexity with respect to resolution.  The 8K image (33.18\,MP)
-takes 30.10\,s, roughly $45\times$ longer than SVGA (0.48\,MP, 0.67\,s).
-The near-linear relationship between megapixels and execution time indicates
-that per-pixel computation cost is approximately uniform when averaged
-across the image, despite the per-pixel variation inherent to the
-escape-time algorithm.
+$O(N)$ complexity.  The 8K image (33.18\,MP) takes 30.10\,s, roughly
+$45\times$ longer than SVGA (0.48\,MP, 0.67\,s).
 
 \subsection{Speedup}
 
@@ -337,14 +320,51 @@ write) persists even after \texttt{parfor} overhead is fully amortised.
 \textbf{Load imbalance and scheduling.}
 The Mandelbrot set has inherently unequal per-pixel cost: pixels near the
 set boundary iterate to \texttt{max\_iterations} = 1\,000, while exterior
-pixels escape in fewer than 10 iterations.  Row-based distribution does not
-account for this variation---rows intersecting the main cardioid and period-2
-bulb are disproportionately expensive.  MATLAB's \texttt{parfor} mitigates
-this through dynamic scheduling, dispatching rows to workers as they become
-available rather than pre-assigning fixed blocks.  This contributes to the
-better-than-naive speedups observed, but for maximum efficiency, a
-finer-grained work-stealing scheduler operating at the pixel or tile level
-would better balance the heterogeneous workload.
+pixels escape in fewer than 10 iterations.  To quantify this,
+Figure~\ref{fig:load_per_row} profiles per-row computation time at 4K~UHD
+with 6 workers.  The characteristic ``mountain'' shape confirms that rows
+intersecting the main cardioid and period-2 bulb (roughly rows 400--1500)
+are orders of magnitude more expensive than edge rows.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\linewidth]{figures/load_balance_per_row.png}
+\caption{Per-row computation time at 4K~UHD coloured by assigned worker.
+Rows near the Mandelbrot boundary (400--1500) are significantly more
+expensive.  Contiguous colour bands reveal that \texttt{parfor} dispatches
+iterations in fixed-size chunks rather than individual rows.}
+\label{fig:load_per_row}
+\end{figure}
+
+The colour bands in Figure~\ref{fig:load_per_row} reveal that MATLAB's
+\texttt{parfor} scheduler divides the iteration space into fixed-size
+contiguous chunks and dispatches them to workers as they become
+available~\cite{parfor_schedule}.  Workers that receive chunks of cheap edge
+rows finish quickly and request more chunks, accumulating a high row count
+but low total computation time.  Workers assigned chunks in the expensive
+boundary region remain busy for longer, completing fewer rows but
+accumulating far more computation time.
+
+Figure~\ref{fig:load_total} quantifies the resulting imbalance: the busiest
+worker (W3, 275 rows, 1.83\,s) accumulated ${\sim}2.8\times$ more
+computation time than the lightest (W2, 678 rows, 0.65\,s), despite W2
+processing over twice as many rows.  This confirms that chunk-level
+granularity is too coarse to balance the load when per-row costs vary as
+dramatically as they do in the Mandelbrot set.  Because overall wall-clock
+time is bounded by the \emph{slowest} worker, this imbalance directly
+limits achievable speedup.  Finer-grained scheduling---dispatching
+individual rows or small tiles rather than large contiguous
+chunks---would improve worker utilisation.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\linewidth]{figures/load_balance_total.png}
+\caption{Total computation time per worker at 4K~UHD with 6 workers.  Row
+counts are labelled above each bar.  Workers assigned expensive boundary
+rows (W3) accumulate far more computation time than workers processing
+cheap edge rows (W2), despite handling fewer rows.}
+\label{fig:load_total}
+\end{figure}
 
 \textbf{Limitations.}
 All results are single-run measurements without repeated trials or
@@ -397,6 +417,11 @@ Guide, University of Cape Town, 2026.
 S.~Winberg and T.~Webb, ``Practical 2: Introduction to MATLAB Parallel
 Computing Toolkit (PCT),'' EEE4120F High Performance Embedded Systems
 Practical Manual, University of Cape Town, 2026.
+
+\bibitem{parfor_schedule}
+E.~Flagg, ``parfor schedule not very smart,'' MATLAB Answers, MathWorks,
+2013. [Online]. Available:
+\texttt{https://www.mathworks.com/matlabcentral/answers/85783}
 \end{thebibliography}
 
 \end{document}
