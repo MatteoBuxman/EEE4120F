@@ -1,0 +1,6 @@
+Optimal route (1-indexed): 1 -> 10 -> 4 -> 9 -> 6 -> 5 -> 8 -> 3 -> 2 -> 7
+Minimum energy cost: 207 kWh
+Threads used : 8
+Tinit        : 0.003227 s
+Tcomp        : 0.000913 s
+Ttotal       : 0.004140 s
