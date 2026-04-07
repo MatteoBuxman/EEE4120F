@@ -1,0 +1,7 @@
+Nodes: 7
+Processes: 4
+Optimal Route: 1 -> 4 -> 6 -> 5 -> 3 -> 2 -> 7
+Minimum Energy: 145
+Initialisation Time: 0.332167 seconds
+Computation Time:    0.000055 seconds
+Total Time:          0.332222 seconds
