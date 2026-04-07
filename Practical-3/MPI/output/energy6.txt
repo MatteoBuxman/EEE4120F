@@ -1,7 +1,7 @@
-Nodes: 6
-Processes: 4
+Cities: 6
+Processes: 8
 Optimal Route: 1 -> 4 -> 6 -> 5 -> 2 -> 3
 Minimum Energy: 124
-Initialisation Time: 0.299106 seconds
-Computation Time:    0.000098 seconds
-Total Time:          0.299204 seconds
+Initialisation Time: 0.345810 seconds
+Computation Time:    0.000026 seconds
+Total Time:          0.345836 seconds

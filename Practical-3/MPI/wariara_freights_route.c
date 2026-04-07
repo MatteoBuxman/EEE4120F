@@ -2,7 +2,11 @@
 // Practical 3: Minimum Energy Consumption Freight Route Optimization
 // =========================================================================
 //
-// GROUP NUMBER:
+// GROUP NUMBER: 18
+//
+// AI NOTE: AI was used to plan our solution as well as write the boilerplate code like the print commands which output our results
+//          at the end of this file.
+//
 //
 // MEMBERS:
 //   - Matteo Buxman, BXMMAT001

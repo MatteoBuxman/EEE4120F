@@ -4,6 +4,10 @@
 //
 // GROUP NUMBER: 18
 //
+//
+// AI NOTE: AI was used to plan our solution as well as write the boilerplate code like the print commands which output our results
+//          at the end of this file.
+//
 // MEMBERS:
 //   - Emmanuel Basua, BSXEMM001
 //   - Matteo Buxman, BXMMAT001

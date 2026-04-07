@@ -1,7 +1,7 @@
 Cities: 10
-Processes: 6
+Processes: 8
 Optimal Route: 1 -> 10 -> 4 -> 9 -> 6 -> 5 -> 8 -> 3 -> 2 -> 7
 Minimum Energy: 207
-Initialisation Time: 0.351756 seconds
-Computation Time:    0.000745 seconds
-Total Time:          0.352501 seconds
+Initialisation Time: 0.345589 seconds
+Computation Time:    0.000913 seconds
+Total Time:          0.346502 seconds
