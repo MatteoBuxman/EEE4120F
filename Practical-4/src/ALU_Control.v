@@ -5,8 +5,8 @@
 // GROUP NUMBER:
 //
 // MEMBERS:
-//   - Member 1 Name, Student Number
-//   - Member 2 Name, Student Number
+//   - Emmanuel Basua, BSXEMM001
+//   - Matteo Buxman, BXMMAT001
 
 // File        : ALU_Control.v
 // Description : ALU Control Unit.
@@ -30,42 +30,31 @@ module ALU_Control (
     output reg [2:0] ALU_Cnt    // To ALU alu_control input
 );
 
-    // -------------------------------------------------------------------------
-    // TODO: Concatenate ALUOp and Opcode into a single 6-bit control word so
-    //       you can use a casex statement with don't-care bits.
-    //
-    //       wire [5:0] control_in;
-    //       assign control_in = {ALUOp, Opcode};
-    //
-    //       The casex truth table (from Section 3.4 of the manual):
-    //
-    //       control_in | ALU_Cnt | Operation   | Instruction
-    //       -----------+---------+-------------+------------------
-    //       6'b10xxxx  |  3'b000 | ADD         | LD, ST
-    //       6'b01xxxx  |  3'b001 | SUB         | BEQ, BNE
-    //       6'b000010  |  3'b000 | ADD         | ADD
-    //       6'b000011  |  3'b001 | SUB         | SUB
-    //       6'b000100  |  3'b010 | INV (NOT)   | INV
-    //       6'b000101  |  3'b011 | SHL         | SHL
-    //       6'b000110  |  3'b100 | SHR         | SHR
-    //       6'b000111  |  3'b101 | AND         | AND
-    //       6'b001000  |  3'b110 | OR          | OR
-    //       6'b001001  |  3'b111 | SLT         | SLT
-    //       default    |  3'b000 | ADD (safe)  | reserved / undefined
-    //
-    //       Implement using:
-    //           always @(*) begin
-    //               casex (control_in)
-    //                   6'b10xxxx : ALU_Cnt = 3'b000;
-    //                   ...
-    //                   default   : ALU_Cnt = 3'b000;
-    //               endcase
-    //           end
-    //
-    //       IMPORTANT: The 'x' in casex patterns matches any logic value
-    //       (0, 1, X, or Z). This correctly encodes don't-care bits for the
-    //       opcode field when ALUOp selects memory or branch mode.
-    // -------------------------------------------------------------------------
+    
+// Concatenate ALUOp and Opcode into a 6-bit control word
+    wire [5:0] control_in;
+    assign control_in = {ALUOp, Opcode};
 
+    always @(*) begin
+        casex (control_in)
+            // Result is always ADD for address offset calculation
+            6'b10_xxxx : ALU_Cnt = 3'b000; 
 
+            // Result is always SUB to compare the two registers
+            6'b01_xxxx : ALU_Cnt = 3'b001;
+
+            // R-Type Instructions: Mapping Opcode to ALU Function
+            6'b00_0010 : ALU_Cnt = 3'b000; // ADD
+            6'b00_0011 : ALU_Cnt = 3'b001; // SUB
+            6'b00_0100 : ALU_Cnt = 3'b010; // INV 
+            6'b00_0101 : ALU_Cnt = 3'b011; // SHL 
+            6'b00_0110 : ALU_Cnt = 3'b100; // SHR
+            6'b00_0111 : ALU_Cnt = 3'b101; // AND
+            6'b00_1000 : ALU_Cnt = 3'b110; // OR
+            6'b00_1001 : ALU_Cnt = 3'b111; // SLT
+
+            // Default: Fail-safe to ADD for undefined opcodes
+            default    : ALU_Cnt = 3'b000;
+        endcase
+    end
 endmodule

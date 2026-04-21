@@ -100,31 +100,20 @@ module StarCore1_tb;
     // Cycle-by-cycle execution trace
     // This always block fires on every rising clock edge and prints the current
     // processor state. It is your primary debugging tool.
-    //
-    // TODO: Uncomment this block once Datapath.v is fully implemented.
-    //       Until then, it will cause "Unable to bind" errors because the
-    //       internal signals (pc_current, instr, etc.) do not yet exist.
     // -------------------------------------------------------------------------
-    // always @(posedge clk) begin
-    //     $display("%0t ns | PC=0x%h | instr=%b | R0=%3d R1=%3d R2=%3d R3=%3d | alu=%0d z=%b",
-    //         $time,
-    //         uut.DU.pc_current,
-    //         uut.DU.instr,
-    //         uut.DU.reg_file.reg_array[0],
-    //         uut.DU.reg_file.reg_array[1],
-    //         uut.DU.reg_file.reg_array[2],
-    //         uut.DU.reg_file.reg_array[3],
-    //         uut.DU.alu_result,
-    //         uut.DU.zero_flag
-    //     );
-    // end
-    //
-    // PLACEHOLDER — prints time only until you uncomment the full trace above.
     always @(posedge clk) begin
-        $display("%0t ns | clock tick (uncomment trace block when Datapath is implemented)",
-                 $time);
+        $display("%0t ns | PC=0x%h | instr=%b | R0=%3d R1=%3d R2=%3d R3=%3d | alu=%0d z=%b",
+            $time,
+            uut.DU.pc_current,
+            uut.DU.instr,
+            uut.DU.reg_file.reg_array[0],
+            uut.DU.reg_file.reg_array[1],
+            uut.DU.reg_file.reg_array[2],
+            uut.DU.reg_file.reg_array[3],
+            uut.DU.alu_result,
+            uut.DU.zero_flag
+        );
     end
-
     // =========================================================================
     // MAIN STIMULUS BLOCK
     // =========================================================================
@@ -143,77 +132,85 @@ module StarCore1_tb;
 
         // -----------------------------------------------------------------------
         // POST-SIMULATION VERIFICATION
-        //
-        // TODO: After implementing Datapath.v and StarCore1.v, uncomment the
-        //       check16() calls below and fill in the expected values for your
-        //       specific test program.
-        //
-        //       All hierarchical references below (uut.DU.*, uut.DU.reg_file.*,
-        //       uut.DU.dm.*) are commented out because they reference signals
-        //       that do not exist until the Datapath is implemented.
-        //       Uncomment them one section at a time as you complete each task.
         // -----------------------------------------------------------------------
-
-        $display("");
-        $display("--- Post-Simulation Verification (implement Datapath first) ---");
-
         // -----------------------------------------------------------------------
         // STEP 1: Verify register values after execution.
-        // Uncomment and fill in expected values after implementing Datapath.v.
-        // -----------------------------------------------------------------------
-        // $display("Checking R0 after LD (expect Mem[0] = 0x0001):");
-        // check16(uut.DU.reg_file.reg_array[0], 16'h0001, test_id);
-        // test_id = test_id + 1;
-        //
-        // $display("Checking R1 after LD (expect Mem[1] = 0x0002):");
-        // check16(uut.DU.reg_file.reg_array[1], 16'h0002, test_id);
-        // test_id = test_id + 1;
-        //
-        // $display("Checking R2 after ADD R0+R1 (expect 0x0001+0x0002 = 0x0003):");
-        // check16(uut.DU.reg_file.reg_array[2], 16'h0003, test_id);
-        // test_id = test_id + 1;
+         // ----------------------------------------------------------------------
+        $display("Checking R0 after LD (expect Mem[0] = 0x0001):");
+        check16(uut.DU.reg_file.reg_array[0], 16'h0001, test_id);
+        test_id = test_id + 1;
 
+        $display("Checking R1 after LD (expect Mem[1] = 0x0002):");
+        check16(uut.DU.reg_file.reg_array[1], 16'h0002, test_id);
+        test_id = test_id + 1;
+
+        $display("Checking R2 after ADD R0+R1 (expect 0x0001+0x0002 = 0x0003):");
+        check16(uut.DU.reg_file.reg_array[2], 16'h0003, test_id);
+        test_id = test_id + 1;
         // -----------------------------------------------------------------------
         // STEP 2: Verify data memory after ST instruction.
-        // The example program stores R2 to Mem[R1+0] = Mem[2] (address offset 0).
-        // Uncomment after implementing Datapath.v.
         // -----------------------------------------------------------------------
-        // $display("Checking DataMem[2] after ST R2 -> Mem[R1+0]:");
-        // check16(uut.DU.dm.memory[2], 16'h0003, test_id);
-        // test_id = test_id + 1;
-
+        $display("Checking DataMem[2] after ST R2 -> Mem[R1+0]:");
+        check16(uut.DU.dm.memory[2], 16'h0003, test_id);
+        test_id = test_id + 1;
         // -----------------------------------------------------------------------
         // STEP 3: Verify additional R-type instruction results.
-        // After SUB R2,R0,R1: R2 = 0x0001 - 0x0002 = 0xFFFF (wrap-around)
-        // NOTE: SUB happens AFTER ST in the example program so R2 changes.
-        // Adjust expected values to match the state at end of SIM_TIME.
         // -----------------------------------------------------------------------
-        // $display("Add your R-type verification checks here...");
+        $display("Checking SUB R2 (expect 0xFFFF):");
+        check16(uut.DU.reg_file.reg_array[2], 16'hFFFF, test_id); 
+        test_id = test_id + 1;
+        // -----------------------------------------------------------------------
+        // STEP 4: Advanced Verification based on test.prog sequence
+        // -----------------------------------------------------------------------
+        $display("");
+        $display("--- STEP 4: Logic, SLT, and Branch Verification ---");
 
-        // -----------------------------------------------------------------------
-        // STEP 4: Add your own checks for AND, OR, SLT, branch, jump effects.
-        // -----------------------------------------------------------------------
+        // 4a. Verify the result of the last R-type to write to R2 (SLT)
+        // SLT R2, R0, R1 -> (1 < 2) is true, so R2 should be 1.
+        $display("Checking final R2 value (Result of SLT R0 < R1):");
+        check16(uut.DU.reg_file.reg_array[2], 16'h0001, test_id);
+        test_id = test_id + 1;
 
+        // 4b. Verify the result of the final ADD (R0 = R0 + R0)
+        // R0 was 1, after index 8 it should be 2.
+        $display("Checking final R0 value (Result of ADD R0, R0, R0):");
+        check16(uut.DU.reg_file.reg_array[0], 16'h0002, test_id);
+        test_id = test_id + 1;
+
+        // 4c. Verify Branch Logic (BEQ R0, R1, target)
+        // At index 9, R0=2 and R1=2. The branch MUST be taken.
+        // If taken, PC skips index 10 (the Jump) and lands on index 11.
+        // PC usually increments by 1 normally, so target +1 means PC = 9 + 1 + 1 = 11.
+        $display("Checking PC to verify BEQ (2==2) took the branch to index 11:");
+        // Note: Check if your PC is byte-addressed (x2) or word-addressed.
+        check16(uut.DU.pc_current, 16'h000b, test_id); 
+        test_id = test_id + 1;
+
+        // 4d. Verify Memory Persistence
+        // Check that the ST instruction at index 3 actually stayed in memory.
+        $display("Checking Mem[2] persistence (Result of ST R2):");
+        check16(uut.DU.dm.memory[2], 16'h0003, test_id);
+        test_id = test_id + 1;
         // -----------------------------------------------------------------------
         // Print register and memory state (safe to uncomment after Task 7)
         // -----------------------------------------------------------------------
-        // $display("");
-        // $display("--- Final Register File State ---");
-        // $display("R0=0x%h  R1=0x%h  R2=0x%h  R3=0x%h",
-        //     uut.DU.reg_file.reg_array[0], uut.DU.reg_file.reg_array[1],
-        //     uut.DU.reg_file.reg_array[2], uut.DU.reg_file.reg_array[3]);
-        // $display("R4=0x%h  R5=0x%h  R6=0x%h  R7=0x%h",
-        //     uut.DU.reg_file.reg_array[4], uut.DU.reg_file.reg_array[5],
-        //     uut.DU.reg_file.reg_array[6], uut.DU.reg_file.reg_array[7]);
-        //
-        // $display("");
-        // $display("--- Final Data Memory State ---");
-        // $display("Mem[0]=0x%h  Mem[1]=0x%h  Mem[2]=0x%h  Mem[3]=0x%h",
-        //     uut.DU.dm.memory[0], uut.DU.dm.memory[1],
-        //     uut.DU.dm.memory[2], uut.DU.dm.memory[3]);
-        // $display("Mem[4]=0x%h  Mem[5]=0x%h  Mem[6]=0x%h  Mem[7]=0x%h",
-        //     uut.DU.dm.memory[4], uut.DU.dm.memory[5],
-        //     uut.DU.dm.memory[6], uut.DU.dm.memory[7]);
+        $display("");
+        $display("--- Final Register File State ---");
+        $display("R0=0x%h  R1=0x%h  R2=0x%h  R3=0x%h",
+            uut.DU.reg_file.reg_array[0], uut.DU.reg_file.reg_array[1],
+            uut.DU.reg_file.reg_array[2], uut.DU.reg_file.reg_array[3]);
+        $display("R4=0x%h  R5=0x%h  R6=0x%h  R7=0x%h",
+            uut.DU.reg_file.reg_array[4], uut.DU.reg_file.reg_array[5],
+            uut.DU.reg_file.reg_array[6], uut.DU.reg_file.reg_array[7]);
+        
+        $display("");
+        $display("--- Final Data Memory State ---");
+        $display("Mem[0]=0x%h  Mem[1]=0x%h  Mem[2]=0x%h  Mem[3]=0x%h",
+            uut.DU.dm.memory[0], uut.DU.dm.memory[1],
+            uut.DU.dm.memory[2], uut.DU.dm.memory[3]);
+        $display("Mem[4]=0x%h  Mem[5]=0x%h  Mem[6]=0x%h  Mem[7]=0x%h",
+            uut.DU.dm.memory[4], uut.DU.dm.memory[5],
+            uut.DU.dm.memory[6], uut.DU.dm.memory[7]);
 
         // -----------------------------------------------------------------------
         // Summary

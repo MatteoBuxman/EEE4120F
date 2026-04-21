@@ -5,8 +5,8 @@
 // GROUP NUMBER:
 //
 // MEMBERS:
-//   - Member 1 Name, Student Number
-//   - Member 2 Name, Student Number
+//   - Emmanuel Basua, BSXEMM001
+//   - Matteo Buxman, BXMMAT001
 
 // File        : Datapath.v
 // Description : StarCore-1 Datapath.
@@ -101,187 +101,106 @@ module Datapath (
     // =========================================================================
     // 1. PROGRAM COUNTER
     // =========================================================================
+    initial begin
+        pc_current <= 16'd0;
+    end
 
-    // TODO: Initialise pc_current to 16'd0 in an initial block.
-    //
-    //       initial begin
-    //           pc_current <= 16'd0;
-    //       end
-    //
-    // TODO: Update pc_current to pc_next on every positive clock edge.
-    //
-    //       always @(posedge clk) begin
-    //           pc_current <= pc_next;
-    //       end
-    //
-    // TODO: Compute pc2 = pc_current + 16'd2 using a continuous assignment.
+    always @(posedge clk) begin
+        pc_current <= pc_next;
+    end
 
-
+    assign pc2 = pc_current + 16'd2; // Standard PC increment 
     // =========================================================================
     // 2. INSTRUCTION MEMORY
     // Instantiate InstructionMemory; connect pc_current and instr.
     // =========================================================================
+    InstructionMemory im (
+        .pc          (pc_current),
+        .instruction (instr)
+    );
 
-    // TODO: Instantiate the InstructionMemory module using named port connections.
-    //
-    //       InstructionMemory im (
-    //           .pc          (pc_current),
-    //           .instruction (instr)
-    //       );
-    //
-    // TODO: Drive the opcode output from the fetched instruction:
-    //       assign opcode = instr[15:12];
-
-
+    assign opcode = instr[15:12];
     // =========================================================================
     // 3. REGISTER FILE WRITE-ADDRESS MULTIPLEXER (RegDst)
     // =========================================================================
-
-    // TODO: Select the write-back register address based on the RegDst control.
-    //   RegDst = 0 -> I-type: write to WS encoded in instr[8:6]
-    //   RegDst = 1 -> R-type: write to WS encoded in instr[5:3]
-    //
-    //       assign reg_write_dest = reg_dst ? instr[5:3] : instr[8:6];
-    //
-    // TODO: Assign the read addresses from the instruction fields:
-    //       assign reg_read_addr_1 = instr[11:9];  // RS1
-    //       assign reg_read_addr_2 = instr[8:6];   // RS2
-
-
+    assign reg_write_dest  = reg_dst ? instr[5:3] : instr[8:6];
+    assign reg_read_addr_1 = instr[11:9]; // RS1
+    assign reg_read_addr_2 = instr[8:6];  // RS2
     // =========================================================================
     // 4. GENERAL PURPOSE REGISTER FILE
     // =========================================================================
-
-    // TODO: Instantiate the GPR module using named port connections.
-    //
-    //       GPR reg_file (
-    //           .clk              (clk),
-    //           .reg_write_en     (reg_write),
-    //           .reg_write_dest   (reg_write_dest),
-    //           .reg_write_data   (reg_write_data),
-    //           .reg_read_addr_1  (reg_read_addr_1),
-    //           .reg_read_data_1  (reg_read_data_1),
-    //           .reg_read_addr_2  (reg_read_addr_2),
-    //           .reg_read_data_2  (reg_read_data_2)
-    //       );
-
-
+    GPR reg_file (
+        .clk              (clk),
+        .reg_write_en     (reg_write),
+        .reg_write_dest   (reg_write_dest),
+        .reg_write_data   (reg_write_data),
+        .reg_read_addr_1  (reg_read_addr_1),
+        .reg_read_data_1  (reg_read_data_1),
+        .reg_read_addr_2  (reg_read_addr_2),
+        .reg_read_data_2  (reg_read_data_2)
+    )
     // =========================================================================
     // 5. IMMEDIATE SIGN-EXTENSION
-    // Sign-extend the 6-bit immediate field instr[5:0] to 16 bits.
-    // The sign bit is instr[5].
     // =========================================================================
-
-    // TODO: Implement using the replication and concatenation operators:
-    //
-    //       assign ext_im = { {10{instr[5]}}, instr[5:0] };
-    //
-    //       Explanation:
-    //         {10{instr[5]}} replicates the sign bit 10 times (bits 15:6)
-    //         instr[5:0]     is the original 6-bit value (bits 5:0)
-    //         Together they form a 16-bit sign-extended immediate.
-
-
+    assign ext_im = { {10{instr[5]}}, instr[5:0] };
     // =========================================================================
     // 6. ALUSrc MULTIPLEXER
-    // Select the second ALU operand.
-    //   alu_src = 0 -> use register RS2 value
-    //   alu_src = 1 -> use sign-extended immediate (for LD, ST, branches)
     // =========================================================================
-
-    // TODO: assign alu_operand_b = alu_src ? ext_im : reg_read_data_2;
-
-
+    assign alu_operand_b = alu_src ? ext_im : reg_read_data_2;  
     // =========================================================================
     // 7. ALU CONTROL UNIT
     // =========================================================================
-
-    // TODO: Instantiate the ALU_Control module.
-    //
-    //       ALU_Control alu_ctrl (
-    //           .ALUOp   (alu_op),
-    //           .Opcode  (instr[15:12]),
-    //           .ALU_Cnt (alu_control)
-    //       );
-
+    ALU_Control alu_ctrl (
+        .ALUOp   (alu_op),
+        .Opcode  (instr[15:12]),
+        .ALU_Cnt (alu_control)
+    );
 
     // =========================================================================
     // 8. ALU
     // =========================================================================
-
-    // TODO: Instantiate the ALU module.
-    //
-    //       ALU alu_unit (
-    //           .a           (reg_read_data_1),
-    //           .b           (alu_operand_b),
-    //           .alu_control (alu_control),
-    //           .result      (alu_result),
-    //           .zero        (zero_flag)
-    //       );
-
+    ALU alu_unit (
+        .a           (reg_read_data_1),
+        .b           (alu_operand_b),
+        .alu_control (alu_control),
+        .result      (alu_result),
+        .zero        (zero_flag)
+    );
 
     // =========================================================================
     // 9. BRANCH ADDRESS COMPUTATION AND PC-NEXT MUX CHAIN
-    //
-    //  pc_branch = pc2 + (sign-extended offset << 1)
-    //            = pc2 + {ext_im[14:0], 1'b0}
-    //
-    //  beq_taken  = beq & zero_flag
-    //  bne_taken  = bne & ~zero_flag
-    //
-    //  pc_after_branch:
-    //    if (beq_taken | bne_taken) -> pc_branch
-    //    else                       -> pc2
-    //
-    //  pc_jump = { pc2[15:13], instr[11:0], 1'b0 }
-    //
-    //  pc_next:
-    //    if jump -> pc_jump
-    //    else    -> pc_after_branch
     // =========================================================================
 
-    // TODO: Implement all of the above using continuous assignments.
-    //
-    //       assign pc_branch       = pc2 + {ext_im[14:0], 1'b0};
-    //       assign beq_taken       = beq & zero_flag;
-    //       assign bne_taken       = bne & ~zero_flag;
-    //       assign pc_after_branch = (beq_taken | bne_taken) ? pc_branch : pc2;
-    //       assign jump_target     = {instr[11:0], 1'b0};
-    //       assign pc_jump         = {pc2[15:13], jump_target};
-    //       assign pc_next         = jump ? pc_jump : pc_after_branch;
-    //
-    //       Note on jump address: {pc2[15:13], jump_target} preserves the
-    //       three most-significant bits of PC+2 and replaces bits [12:0]
-    //       with the shifted offset, limiting jumps to within the same
-    //       8 KB aligned region. This matches the StarCore ISA specification.
-
+    // Branch Target = (PC+2) + (Offset << 1)
+    assign pc_branch       = pc2 + {ext_im[14:0], 1'b0};
+    
+    // Logic to decide if we branch
+    assign beq_taken       = beq & zero_flag;
+    assign bne_taken       = bne & ~zero_flag;
+    
+    // First Mux: Choose between PC+2 and Branch Target
+    assign pc_after_branch = (beq_taken | bne_taken) ? pc_branch : pc2;
+    
+    // Jump Logic: {Upper 3 bits of PC+2, 12-bit offset, 0}
+    assign jump_target     = {instr[11:0], 1'b0};
+    assign pc_jump         = {pc2[15:13], jump_target};
+    
+    // Final Mux: Choose between Branch Result and Jump Target
+    assign pc_next         = jump ? pc_jump : pc_after_branch;
 
     // =========================================================================
     // 10. DATA MEMORY
     // =========================================================================
-
-    // TODO: Instantiate the DataMemory module.
-    //       The memory address comes from the ALU result (address calculation).
-    //       The write data comes from RS2 (for ST instructions).
-    //
-    //       DataMemory dm (
-    //           .clk             (clk),
-    //           .mem_access_addr (alu_result),
-    //           .mem_write_data  (reg_read_data_2),
-    //           .mem_write_en    (mem_write),
-    //           .mem_read        (mem_read),
-    //           .mem_read_data   (mem_read_data)
-    //       );
-
-
+    DataMemory dm (
+        .clk             (clk),
+        .mem_access_addr (alu_result),
+        .mem_write_data  (reg_read_data_2),
+        .mem_write_en    (mem_write),
+        .mem_read        (mem_read),
+        .mem_read_data   (mem_read_data)
+    );
     // =========================================================================
     // 11. WRITE-BACK MULTIPLEXER (MemToReg)
-    // Select the data written back to the register file.
-    //   mem_to_reg = 0 -> ALU result  (for R-type and other compute instructions)
-    //   mem_to_reg = 1 -> memory read data (for LD instruction)
     // =========================================================================
-
-    // TODO: assign reg_write_data = mem_to_reg ? mem_read_data : alu_result;
-
-
+    assign reg_write_data = mem_to_reg ? mem_read_data : alu_result;
 endmodule
