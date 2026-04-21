@@ -5,8 +5,8 @@
 // GROUP NUMBER:
 //
 // MEMBERS:
-//   - Member 1 Name, Student Number
-//   - Member 2 Name, Student Number
+//   - Matteo Buxman, BXMMAT001
+//   - Emmanuel Basua, BSXEMM001
 
 // File        : ALU.v
 // Description : 16-bit Arithmetic and Logic Unit (ALU).
@@ -28,39 +28,20 @@ module ALU (
     output         zero         // Zero flag: asserted (1) when result == 16'd0
 );
 
-    // -------------------------------------------------------------------------
-    // TODO: Implement the zero flag using a continuous assignment.
-    //       The zero output must be a wire driven by a single assign statement.
-    //       It should be 1 when result equals 16'd0, and 0 otherwise.
-    //
-    //       assign zero = ...;
-    // -------------------------------------------------------------------------
+    assign zero = (result == 16'd0);
 
-    // -------------------------------------------------------------------------
-    // TODO: Implement the ALU operations using a combinational always block.
-    //
-    //       Use: always @(*) begin
-    //                case (alu_control)
-    //                    ...
-    //                endcase
-    //            end
-    //
-    //       ALUcnt | Operation | Expression
-    //       -------+-----------+------------------------------
-    //       3'b000 | ADD       | result = a + b
-    //       3'b001 | SUB       | result = a - b
-    //       3'b010 | INV       | result = ~a   (bitwise NOT; b is ignored)
-    //       3'b011 | SHL       | result = a << b[3:0]
-    //       3'b100 | SHR       | result = a >> b[3:0]
-    //       3'b101 | AND       | result = a & b
-    //       3'b110 | OR        | result = a | b
-    //       3'b111 | SLT       | result = (a < b) ? 16'd1 : 16'd0  (unsigned)
-    //       default| ADD       | result = a + b   (safe fallback)
-    //
-    //       Hint: The SLT comparison uses unsigned arithmetic because Verilog
-    //       treats reg/wire values as unsigned by default. This is correct
-    //       for the StarCore ISA.
-    // -------------------------------------------------------------------------
-
+    always @(*) begin
+        case (alu_control)
+            3'b000: result = a + b;
+            3'b001: result = a - b;
+            3'b010: result = ~a;
+            3'b011: result = a << b[3:0];
+            3'b100: result = a >> b[3:0];
+            3'b101: result = a & b;
+            3'b110: result = a | b;
+            3'b111: result = (a < b) ? 16'd1 : 16'd0;
+            default: result = a + b;
+        endcase
+    end
 
 endmodule

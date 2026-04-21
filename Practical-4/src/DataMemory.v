@@ -5,8 +5,8 @@
 // GROUP NUMBER:
 //
 // MEMBERS:
-//   - Member 1 Name, Student Number
-//   - Member 2 Name, Student Number
+//   - Matteo Buxman, BXMMAT001
+//   - Emmanuel Basua, BSXEMM001
 
 // File        : DataMemory.v
 // Description : Data Memory (RAM).
@@ -36,72 +36,28 @@ module DataMemory (
     output [15:0] mem_read_data     // Read result; 16'd0 when mem_read is de-asserted
 );
 
-    // -------------------------------------------------------------------------
-    // TODO: Declare the data memory array.
-    //       It should hold `ROW_D entries, each `COL bits wide.
-    //
-    //       reg [`COL-1:0] memory [`ROW_D-1:0];
-    // -------------------------------------------------------------------------
+    reg [`COL-1:0] memory [`ROW_D-1:0];
 
+    wire [2:0] ram_addr = mem_access_addr[2:0];
 
-    // -------------------------------------------------------------------------
-    // TODO: Derive the word address from mem_access_addr.
-    //       The data memory is 8 words deep so only 3 address bits are needed.
-    //       The ALU computes a byte address; use the lower 3 bits as the index:
-    //
-    //           wire [2:0] ram_addr = mem_access_addr[2:0];
-    //
-    //       This maps byte addresses 0,1,2,3,4,5,6,7 to words 0–7.
-    //       (In a full system the byte offset within a word would also be
-    //       handled, but StarCore-1 only supports 16-bit aligned accesses.)
-    // -------------------------------------------------------------------------
+    integer log_fd;
+    initial begin
+        $readmemb("./test/test.data", memory);
+    end
 
+    initial begin
+        log_fd = $fopen(`DMEM_LOG);
+        $fmonitor(log_fd, "t=%0t  [0]=%h [1]=%h [2]=%h [3]=%h",
+                  $time, memory[0], memory[1], memory[2], memory[3]);
+        `SIM_TIME;
+        $fclose(log_fd);
+    end
 
-    // -------------------------------------------------------------------------
-    // TODO: Load the data memory from file at simulation start.
-    //       The file ./test/test.data must contain one 16-bit binary value
-    //       per line (8 lines total, one per word).
-    //
-    //       integer log_fd;
-    //       initial begin
-    //           $readmemb("./test/test.data", memory);
-    //       end
-    //
-    //       Optional — add a $fmonitor to log memory contents to a file.
-    //       This is useful for verifying ST instructions during simulation:
-    //
-    //       initial begin
-    //           log_fd = $fopen(`DMEM_LOG);
-    //           $fmonitor(log_fd, "t=%0t  [0]=%h [1]=%h [2]=%h [3]=%h",
-    //                     $time, memory[0], memory[1], memory[2], memory[3]);
-    //           `SIM_TIME;
-    //           $fclose(log_fd);
-    //       end
-    // -------------------------------------------------------------------------
+    always @(posedge clk) begin
+        if (mem_write_en)
+            memory[ram_addr] <= mem_write_data;
+    end
 
-
-    // -------------------------------------------------------------------------
-    // TODO: Implement the synchronous write port.
-    //       Write mem_write_data to memory[ram_addr] on the rising clock edge
-    //       when mem_write_en is asserted.
-    //
-    //       always @(posedge clk) begin
-    //           if (mem_write_en)
-    //               memory[ram_addr] <= mem_write_data;
-    //       end
-    //
-    //       IMPORTANT: Use non-blocking assignment (<=).
-    // -------------------------------------------------------------------------
-
-
-    // -------------------------------------------------------------------------
-    // TODO: Implement the combinational (gated) read port.
-    //       When mem_read is 1, output memory[ram_addr].
-    //       When mem_read is 0, output 16'd0 (prevents spurious register writes
-    //       during non-LD instructions).
-    //
-    //       assign mem_read_data = mem_read ? memory[ram_addr] : 16'd0;
-    // -------------------------------------------------------------------------
-
+    assign mem_read_data = mem_read ? memory[ram_addr] : 16'd0;
 
 endmodule

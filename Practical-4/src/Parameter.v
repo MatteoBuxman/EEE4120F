@@ -5,8 +5,8 @@
 // GROUP NUMBER:
 //
 // MEMBERS:
-//   - Member 1 Name, Student Number
-//   - Member 2 Name, Student Number
+//   - Matteo Buxman, BXMMAT001
+//   - Emmanuel Basua, BSXEMM001
 
 // File        : Parameter.v
 // Description : Shared compile-time parameters used across all modules.
