@@ -94,29 +94,45 @@ module ControlUnit_tb;
         $display("=== ControlUnit Testbench ===");
         $display("    Format: check_ctrl(alu_op, jump, beq, bne, mem_read, mem_write, alu_src, reg_dst, mem_to_reg, reg_write, id)");
 
-        // LD (opcode = 4'b0000)
+        // LD (0000)
         opcode = 4'b0000; #10;
         check_ctrl(2'b10, 1'b0, 1'b0, 1'b0, 1'b1, 1'b0, 1'b1, 1'b0, 1'b1, 1'b1, test_id);
         test_id = test_id + 1;
 
-        // ST (opcode = 4'b0001)
+        // ST (0001)
         opcode = 4'b0001; #10;
         check_ctrl(2'b10, 1'b0, 1'b0, 1'b0, 1'b0, 1'b1, 1'b1, 1'b0, 1'b0, 1'b0, test_id);
         test_id = test_id + 1;
 
-        // ADD (opcode = 4'b0010) -- R-type
-        opcode = 4'b0010; #10;
-        check_ctrl(2'b00, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b1, 1'b0, 1'b1, test_id);
-        test_id = test_id + 1;
+        // R-Type 
+        // All R-types share the same control signal pattern
+        // (alu_op=00, jump=0, beq=0, bne=0, mr=0, mw=0, as=0, rd=1, mtr=0, rw=1)
+        for (integer i = 4'b0010; i <= 4'b1001; i = i + 1) begin
+            opcode = i[3:0]; #10;
+            check_ctrl(2'b00, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b1, 1'b0, 1'b1, test_id);
+            test_id = test_id + 1;
+        end
 
-        // BEQ (opcode = 4'b1011)
+        // BEQ (1011)
         opcode = 4'b1011; #10;
         check_ctrl(2'b01, 1'b0, 1'b1, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, test_id);
         test_id = test_id + 1;
 
-        // JMP (opcode = 4'b1101)
+        // BNE (1100)
+        opcode = 4'b1100; #10;
+        check_ctrl(2'b01, 1'b0, 1'b0, 1'b1, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, test_id);
+        test_id = test_id + 1;
+
+        // JMP (1101)
         opcode = 4'b1101; #10;
         check_ctrl(2'b00, 1'b1, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, test_id);
+        test_id = test_id + 1;
+
+        // Undefined/Reserved
+        
+        $display("Checking Reserved Opcode (1010):");
+        opcode = 4'b1010; #10;
+        check_ctrl(2'b00, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, test_id);
         test_id = test_id + 1;
         
         $display("");
