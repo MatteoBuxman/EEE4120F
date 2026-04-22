@@ -94,44 +94,47 @@ module ControlUnit_tb;
         $display("=== ControlUnit Testbench ===");
         $display("    Format: check_ctrl(alu_op, jump, beq, bne, mem_read, mem_write, alu_src, reg_dst, mem_to_reg, reg_write, id)");
 
-        // Truth table columns (from Section 3.3 of the manual):
-        // Instr    | RegDst | ALUSrc | MemToReg | RegWrite | MemRd | MemWr | Branch | ALUOp | Jump
-        // LD       |   0    |   1    |    1     |    1     |   1   |   0   |   0    |  10   |  0
-        // ST       |   0    |   1    |    0     |    0     |   0   |   1   |   0    |  10   |  0
-        // R-type   |   1    |   0    |    0     |    1     |   0   |   0   |   0    |  00   |  0
-        // BEQ      |   0    |   0    |    0     |    0     |   0   |   0   | beq=1  |  01   |  0
-        // BNE      |   0    |   0    |    0     |    0     |   0   |   0   | bne=1  |  01   |  0
-        // JMP      |   0    |   0    |    0     |    0     |   0   |   0   |   0    |  00   |  1
-        // Reserved |   0    |   0    |    0     |    0     |   0   |   0   |   0    |  00   |  0
+        // LD (0000)
+        opcode = 4'b0000; #10;
+        check_ctrl(2'b10, 1'b0, 1'b0, 1'b0, 1'b1, 1'b0, 1'b1, 1'b0, 1'b1, 1'b1, test_id);
+        test_id = test_id + 1;
 
-        // ------------------------------------------------------------------
-        // TODO: Apply each opcode and call check_ctrl with expected values.
-        //
-        //       // LD (opcode = 4'b0000)
-        //       opcode = 4'b0000; #10;
-        //       //        alu_op  jump  beq   bne   mr    mw    as    rd    mtr   rw    id
-        //       check_ctrl(2'b10, 1'b0, 1'b0, 1'b0, 1'b1, 1'b0, 1'b1, 1'b0, 1'b1, 1'b1, test_id);
-        //       test_id = test_id + 1;
-        //
-        //       // ST (opcode = 4'b0001)
-        //       opcode = 4'b0001; #10;
-        //       check_ctrl(2'b10, 1'b0, 1'b0, 1'b0, 1'b0, 1'b1, 1'b1, 1'b0, 1'b0, 1'b0, test_id);
-        //       test_id = test_id + 1;
-        //
-        //       // ADD (opcode = 4'b0010)  -- R-type
-        //       opcode = 4'b0010; #10;
-        //       check_ctrl(2'b00, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b1, 1'b0, 1'b1, test_id);
-        //       test_id = test_id + 1;
-        //
-        //       // ... continue for all R-type opcodes (0010 through 1001)
-        //       // ... then BEQ (1011), BNE (1100), JMP (1101)
-        //       // ... and reserved (1010) and a default/undefined opcode
-        //
-        //       NOTE on Branch: the manual's 'Branch' column maps to beq=1
-        //       for BEQ and bne=1 for BNE. Both beq and bne are 0 for JMP.
-        // ------------------------------------------------------------------
+        // ST (0001)
+        opcode = 4'b0001; #10;
+        check_ctrl(2'b10, 1'b0, 1'b0, 1'b0, 1'b0, 1'b1, 1'b1, 1'b0, 1'b0, 1'b0, test_id);
+        test_id = test_id + 1;
 
+        // R-Type 
+        // All R-types share the same control signal pattern
+        // (alu_op=00, jump=0, beq=0, bne=0, mr=0, mw=0, as=0, rd=1, mtr=0, rw=1)
+        for (integer i = 4'b0010; i <= 4'b1001; i = i + 1) begin
+            opcode = i[3:0]; #10;
+            check_ctrl(2'b00, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b1, 1'b0, 1'b1, test_id);
+            test_id = test_id + 1;
+        end
 
+        // BEQ (1011)
+        opcode = 4'b1011; #10;
+        check_ctrl(2'b01, 1'b0, 1'b1, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, test_id);
+        test_id = test_id + 1;
+
+        // BNE (1100)
+        opcode = 4'b1100; #10;
+        check_ctrl(2'b01, 1'b0, 1'b0, 1'b1, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, test_id);
+        test_id = test_id + 1;
+
+        // JMP (1101)
+        opcode = 4'b1101; #10;
+        check_ctrl(2'b00, 1'b1, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, test_id);
+        test_id = test_id + 1;
+
+        // Undefined/Reserved
+        
+        $display("Checking Reserved Opcode (1010):");
+        opcode = 4'b1010; #10;
+        check_ctrl(2'b00, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, test_id);
+        test_id = test_id + 1;
+        
         $display("");
         if (fail_count == 0)
             $display("=== ALL %0d TESTS PASSED ===", test_id - 1);

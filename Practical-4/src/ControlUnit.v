@@ -5,8 +5,8 @@
 // GROUP NUMBER:
 //
 // MEMBERS:
-//   - Member 1 Name, Student Number
-//   - Member 2 Name, Student Number
+//   - Emmanuel Basua, BSXEMM001
+//   - Matteo Buxman, BXMMAT001
 
 // File        : ControlUnit.v
 // Description : Main Control Unit.
@@ -61,70 +61,61 @@ module ControlUnit (
     // and bne & ~zero_flag respectively to determine whether the branch is taken.
     // -------------------------------------------------------------------------
 
-    // -------------------------------------------------------------------------
-    // TODO: Implement the control unit using always @(*) and a case statement.
-    //
-    //       STEP 1 — Assign safe defaults to ALL outputs at the top of the
-    //       always block BEFORE the case statement. This prevents accidental
-    //       latches when an opcode branch does not assign every signal:
-    //
-    //           always @(*) begin
-    //               // Safe defaults: no writes, no branches, no jumps
-    //               reg_dst   = 1'b0;
-    //               alu_src   = 1'b0;
-    //               mem_to_reg= 1'b0;
-    //               reg_write = 1'b0;
-    //               mem_read  = 1'b0;
-    //               mem_write = 1'b0;
-    //               beq       = 1'b0;
-    //               bne       = 1'b0;
-    //               alu_op    = 2'b00;
-    //               jump      = 1'b0;
-    //
-    //               case (opcode)
-    //                   4'b0000: begin  // LD
-    //                       reg_dst   = 1'b0;
-    //                       alu_src   = 1'b1;
-    //                       mem_to_reg= 1'b1;
-    //                       reg_write = 1'b1;
-    //                       mem_read  = 1'b1;
-    //                       alu_op    = 2'b10;
-    //                   end
-    //
-    //                   4'b0001: begin  // ST
-    //                       ...
-    //                   end
-    //
-    //                   // R-type instructions share identical control signals.
-    //                   // List each opcode individually OR use a Verilog 2001
-    //                   // comma-separated case item:
-    //                   // 4'b0010, 4'b0011, 4'b0100, 4'b0101,
-    //                   // 4'b0110, 4'b0111, 4'b1000, 4'b1001: begin ...
-    //
-    //                   4'b1010: begin  // Reserved — must be a no-operation
-    //                       // All outputs remain at safe defaults.
-    //                       // No register or memory side-effects.
-    //                   end
-    //
-    //                   4'b1011: begin  // BEQ
-    //                       beq    = 1'b1;
-    //                       alu_op = 2'b01;
-    //                   end
-    //
-    //                   4'b1100: begin  // BNE
-    //                       ...
-    //                   end
-    //
-    //                   4'b1101: begin  // JMP
-    //                       ...
-    //                   end
-    //
-    //                   default: begin
-    //                       // Safe defaults already set above.
-    //                   end
-    //               endcase
-    //           end
-    // -------------------------------------------------------------------------
+    always @(*) begin
 
+        // Setting everything to 0 first prevents "Latches" and ensures 
+        // that undefined opcodes don't accidentally write to memory or registers.
+        reg_dst    = 1'b0;
+        alu_src    = 1'b0;
+        mem_to_reg = 1'b0;
+        reg_write  = 1'b0;
+        mem_read   = 1'b0;
+        mem_write  = 1'b0;
+        beq        = 1'b0;
+        bne        = 1'b0;
+        alu_op     = 2'b00;
+        jump       = 1'b0;
 
+        case (opcode)
+            4'b0000: begin  // LD (Load Word)
+                alu_src    = 1'b1; 
+                mem_to_reg = 1'b1; 
+                reg_write  = 1'b1; 
+                mem_read   = 1'b1; 
+                alu_op     = 2'b10;
+            end
+
+            4'b0001: begin  // ST (Store Word)
+                alu_src    = 1'b1; 
+                mem_write  = 1'b1; 
+                alu_op     = 2'b10; 
+            end
+
+            // R-type instructions (ADD, SUB, INV, SHL, SHR, AND, OR, SLT)
+            4'b0010, 4'b0011, 4'b0100, 4'b0101,
+            4'b0110, 4'b0111, 4'b1000, 4'b1001: begin 
+                reg_dst    = 1'b1; 
+                reg_write  = 1'b1; 
+                alu_op     = 2'b00; 
+            end
+
+            4'b1011: begin  // BEQ (Branch if Equal)
+                beq        = 1'b1; 
+                alu_op     = 2'b01; 
+            end
+
+            4'b1100: begin  // BNE (Branch if Not Equal)
+                bne        = 1'b1; 
+                alu_op     = 2'b01; 
+            end
+
+            4'b1101: begin  // JMP (Jump)
+                jump       = 1'b1;  
+            end
+
+            default: begin
+                // No action needed; defaults are already 0.
+            end
+        endcase
+    end
 endmodule

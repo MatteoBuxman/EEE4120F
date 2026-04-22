@@ -57,44 +57,39 @@ module ALU_Control_tb;
         // ------------------------------------------------------------------
         $display("--- ALUOp=10: all opcodes should map to ADD (000) ---");
 
-        // TODO: Apply ALUOp=2'b10 with several different opcode values and
-        //       verify ALU_Cnt is always 3'b000 (ADD).
-        //
-        //       ALUOp=2'b10; Opcode=4'h0; #10;
-        //       check_cnt(ALU_Cnt, 3'b000, test_id); test_id=test_id+1;
-        //
-        //       ALUOp=2'b10; Opcode=4'hF; #10;
-        //       check_cnt(ALU_Cnt, 3'b000, test_id); test_id=test_id+1;
+        ALUOp=2'b10; Opcode=4'h0; #10;
+        check_cnt(ALU_Cnt, 3'b000, test_id); test_id=test_id+1;
 
+        ALUOp=2'b10; Opcode=4'hF; #10;
+        check_cnt(ALU_Cnt, 3'b000, test_id); test_id=test_id+1;
 
         // ------------------------------------------------------------------
         // ALUOp = 01 (branch) — always SUB regardless of opcode
         // ------------------------------------------------------------------
         $display("--- ALUOp=01: all opcodes should map to SUB (001) ---");
 
-        // TODO: Apply ALUOp=2'b01 with several opcode values and verify
-        //       ALU_Cnt is always 3'b001 (SUB).
+        ALUOp=2'b01; Opcode=4'h0; #10;
+        check_cnt(ALU_Cnt, 3'b001, test_id); test_id=test_id+1;
 
+        ALUOp=2'b01; Opcode=4'hB; #10;
+        check_cnt(ALU_Cnt, 3'b001, test_id); test_id=test_id+1
 
         // ------------------------------------------------------------------
         // ALUOp = 00 (R-type) — decode from opcode
         // ------------------------------------------------------------------
         $display("--- ALUOp=00: decode per opcode ---");
 
-        // TODO: Apply ALUOp=2'b00 with each R-type opcode and verify:
-        //
-        //       Opcode 4'h2 (ADD) -> ALU_Cnt = 3'b000
-        //       Opcode 4'h3 (SUB) -> ALU_Cnt = 3'b001
-        //       Opcode 4'h4 (INV) -> ALU_Cnt = 3'b010
-        //       Opcode 4'h5 (SHL) -> ALU_Cnt = 3'b011
-        //       Opcode 4'h6 (SHR) -> ALU_Cnt = 3'b100
-        //       Opcode 4'h7 (AND) -> ALU_Cnt = 3'b101
-        //       Opcode 4'h8 (OR)  -> ALU_Cnt = 3'b110
-        //       Opcode 4'h9 (SLT) -> ALU_Cnt = 3'b111
-        //
-        //       ALUOp=2'b00; Opcode=4'h2; #10;
-        //       check_cnt(ALU_Cnt, 3'b000, test_id); test_id=test_id+1;
-        //       ... etc.
+        ALUOp=2'b00; Opcode=4'h2; #10; // ADD
+        check_cnt(ALU_Cnt, 3'b000, test_id); test_id=test_id+1;
+
+        ALUOp=2'b00; Opcode=4'h3; #10; // SUB
+        check_cnt(ALU_Cnt, 3'b001, test_id); test_id=test_id+1;
+
+        ALUOp=2'b00; Opcode=4'h7; #10; // AND
+        check_cnt(ALU_Cnt, 3'b101, test_id); test_id=test_id+1;
+
+        ALUOp=2'b00; Opcode=4'h9; #10; // SLT
+        check_cnt(ALU_Cnt, 3'b111, test_id); test_id=test_id+1;
 
 
         // ------------------------------------------------------------------
@@ -102,9 +97,8 @@ module ALU_Control_tb;
         // ------------------------------------------------------------------
         $display("--- Default (ALUOp=00, undefined opcode) -> ADD (000) ---");
 
-        // TODO: Apply ALUOp=2'b00 with an undefined opcode (e.g. 4'hA or 4'hF)
-        //       and verify ALU_Cnt defaults to 3'b000.
-
+        ALUOp=2'b00; Opcode=4'hF; #10;
+        check_cnt(ALU_Cnt, 3'b000, test_id); test_id=test_id+1;
 
         $display("");
         if (fail_count == 0)
