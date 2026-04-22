@@ -64,7 +64,7 @@ module StarCore1_tb;
     // Waveform dump — captures ALL signals in the design hierarchy
     // -------------------------------------------------------------------------
     initial begin
-        $dumpfile("../waves/star.vcd");
+        $dumpfile("./waves/star.vcd");
         $dumpvars(0, StarCore1_tb);
     end
 
@@ -115,7 +115,32 @@ module StarCore1_tb;
         );
     end
     // =========================================================================
+    // SAFETY TIMEOUT — ends the simulation if the checks below hang.
+    // =========================================================================
+    initial begin
+        `SIM_TIME;
+        $display("*** SIM_TIME elapsed before all checks completed ***");
+        $finish;
+    end
+
+    // =========================================================================
     // MAIN STIMULUS BLOCK
+    // Each assertion is gated on pc_current reaching a specific value, so the
+    // check fires at the exact cycle the target instruction's write has just
+    // committed — regardless of the program looping via JMP 0.
+    //
+    // Program timing (byte-addressed PC, one instruction per clock):
+    //   pc=0  : LD  R0, Mem[0]       R0  <- 0x0001   (committed at pc->2)
+    //   pc=2  : LD  R1, Mem[1]       R1  <- 0x0002   (committed at pc->4)
+    //   pc=4  : ADD R2, R0, R1       R2  <- 0x0003   (committed at pc->6)
+    //   pc=6  : ST  R2, Mem[R1+0]    Mem[2] <- 0x0003 (committed at pc->8)
+    //   pc=8  : SUB R2, R0, R1       R2  <- 0xFFFF   (committed at pc->10)
+    //   pc=10 : AND R2, R0, R1       R2  <- 0x0000
+    //   pc=12 : OR  R2, R0, R1       R2  <- 0x0003
+    //   pc=14 : SLT R2, R0, R1       R2  <- 0x0001   (committed at pc->16)
+    //   pc=16 : ADD R0, R0, R0       R0  <- 0x0002   (committed at pc->18)
+    //   pc=18 : BEQ R0, R1, +1       R0==R1 -> pc_next = 22 (0x16)
+    //   pc=22 : JMP 0                pc_next = 0
     // =========================================================================
     initial begin
         $display("=== StarCore-1 Integration Testbench ===");
@@ -123,74 +148,49 @@ module StarCore1_tb;
         $display("=== Data memory loaded from ./test/test.data ===");
         $display("");
 
-        // -----------------------------------------------------------------------
-        // Wait for the simulation to run long enough for your program to
-        // complete at least one full pass. Adjust SIM_TIME in Parameter.v
-        // if your program needs more cycles.
-        // -----------------------------------------------------------------------
-        `SIM_TIME;
-
-        // -----------------------------------------------------------------------
-        // POST-SIMULATION VERIFICATION
-        // -----------------------------------------------------------------------
-        // -----------------------------------------------------------------------
-        // STEP 1: Verify register values after execution.
-         // ----------------------------------------------------------------------
+        // T1 — R0 after LD
+        while (uut.DU.pc_current !== 16'd2)  @(posedge clk);
         $display("Checking R0 after LD (expect Mem[0] = 0x0001):");
-        check16(uut.DU.reg_file.reg_array[0], 16'h0001, test_id);
-        test_id = test_id + 1;
+        check16(uut.DU.reg_file.reg_array[0], 16'h0001, test_id); test_id = test_id + 1;
 
+        // T2 — R1 after LD
+        while (uut.DU.pc_current !== 16'd4)  @(posedge clk);
         $display("Checking R1 after LD (expect Mem[1] = 0x0002):");
-        check16(uut.DU.reg_file.reg_array[1], 16'h0002, test_id);
-        test_id = test_id + 1;
+        check16(uut.DU.reg_file.reg_array[1], 16'h0002, test_id); test_id = test_id + 1;
 
-        $display("Checking R2 after ADD R0+R1 (expect 0x0001+0x0002 = 0x0003):");
-        check16(uut.DU.reg_file.reg_array[2], 16'h0003, test_id);
-        test_id = test_id + 1;
-        // -----------------------------------------------------------------------
-        // STEP 2: Verify data memory after ST instruction.
-        // -----------------------------------------------------------------------
-        $display("Checking DataMem[2] after ST R2 -> Mem[R1+0]:");
-        check16(uut.DU.dm.memory[2], 16'h0003, test_id);
-        test_id = test_id + 1;
-        // -----------------------------------------------------------------------
-        // STEP 3: Verify additional R-type instruction results.
-        // -----------------------------------------------------------------------
-        $display("Checking SUB R2 (expect 0xFFFF):");
-        check16(uut.DU.reg_file.reg_array[2], 16'hFFFF, test_id); 
-        test_id = test_id + 1;
-        // -----------------------------------------------------------------------
-        // STEP 4: Advanced Verification based on test.prog sequence
-        // -----------------------------------------------------------------------
-        $display("");
-        $display("--- STEP 4: Logic, SLT, and Branch Verification ---");
+        // T3 — R2 after ADD R0+R1
+        while (uut.DU.pc_current !== 16'd6)  @(posedge clk);
+        $display("Checking R2 after ADD R0+R1 (expect 0x0003):");
+        check16(uut.DU.reg_file.reg_array[2], 16'h0003, test_id); test_id = test_id + 1;
 
-        // 4a. Verify the result of the last R-type to write to R2 (SLT)
-        // SLT R2, R0, R1 -> (1 < 2) is true, so R2 should be 1.
-        $display("Checking final R2 value (Result of SLT R0 < R1):");
-        check16(uut.DU.reg_file.reg_array[2], 16'h0001, test_id);
-        test_id = test_id + 1;
+        // T4 — Mem[2] after ST
+        while (uut.DU.pc_current !== 16'd8)  @(posedge clk);
+        $display("Checking DataMem[2] after ST R2 -> Mem[R1+0] (expect 0x0003):");
+        check16(uut.DU.dm.memory[2], 16'h0003, test_id); test_id = test_id + 1;
 
-        // 4b. Verify the result of the final ADD (R0 = R0 + R0)
-        // R0 was 1, after index 8 it should be 2.
-        $display("Checking final R0 value (Result of ADD R0, R0, R0):");
-        check16(uut.DU.reg_file.reg_array[0], 16'h0002, test_id);
-        test_id = test_id + 1;
+        // T5 — R2 after SUB
+        while (uut.DU.pc_current !== 16'd10) @(posedge clk);
+        $display("Checking R2 after SUB R0-R1 (expect 0xFFFF):");
+        check16(uut.DU.reg_file.reg_array[2], 16'hFFFF, test_id); test_id = test_id + 1;
 
-        // 4c. Verify Branch Logic (BEQ R0, R1, target)
-        // At index 9, R0=2 and R1=2. The branch MUST be taken.
-        // If taken, PC skips index 10 (the Jump) and lands on index 11.
-        // PC usually increments by 1 normally, so target +1 means PC = 9 + 1 + 1 = 11.
-        $display("Checking PC to verify BEQ (2==2) took the branch to index 11:");
-        // Note: Check if your PC is byte-addressed (x2) or word-addressed.
-        check16(uut.DU.pc_current, 16'h000b, test_id); 
-        test_id = test_id + 1;
+        // T6 — R2 after SLT (1 < 2 -> 1)
+        while (uut.DU.pc_current !== 16'd16) @(posedge clk);
+        $display("Checking R2 after SLT R0<R1 (expect 0x0001):");
+        check16(uut.DU.reg_file.reg_array[2], 16'h0001, test_id); test_id = test_id + 1;
 
-        // 4d. Verify Memory Persistence
-        // Check that the ST instruction at index 3 actually stayed in memory.
-        $display("Checking Mem[2] persistence (Result of ST R2):");
-        check16(uut.DU.dm.memory[2], 16'h0003, test_id);
-        test_id = test_id + 1;
+        // T7 — R0 after ADD R0,R0,R0
+        while (uut.DU.pc_current !== 16'd18) @(posedge clk);
+        $display("Checking R0 after ADD R0+R0 (expect 0x0002):");
+        check16(uut.DU.reg_file.reg_array[0], 16'h0002, test_id); test_id = test_id + 1;
+
+        // T8 — BEQ (R0==R1) must branch to pc = 0x0016 (byte-addressed)
+        @(posedge clk);
+        $display("Checking PC after BEQ (R0==R1 must branch to 0x0016):");
+        check16(uut.DU.pc_current, 16'h0016, test_id); test_id = test_id + 1;
+
+        // T9 — Mem[2] persisted through the full instruction sequence
+        $display("Checking Mem[2] persistence end-of-pass (expect 0x0003):");
+        check16(uut.DU.dm.memory[2], 16'h0003, test_id); test_id = test_id + 1;
         // -----------------------------------------------------------------------
         // Print register and memory state (safe to uncomment after Task 7)
         // -----------------------------------------------------------------------

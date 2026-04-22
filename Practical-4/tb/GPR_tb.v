@@ -52,7 +52,7 @@ module GPR_tb;
     // Waveform dump
     // -------------------------------------------------------------------------
     initial begin
-        $dumpfile("../waves/gpr_tb.vcd");
+        $dumpfile("./waves/gpr_tb.vcd");
         $dumpvars(0, GPR_tb);
     end
 
@@ -102,23 +102,28 @@ module GPR_tb;
         // ------------------------------------------------------------------
         $display("--- Test Group 1: Write and read back all 8 registers ---");
 
-        // TODO: For each register R0–R7, perform a synchronous write followed
-        //       by an asynchronous read and verify the value.
-        //
-        //       Use a loop or individual test cases. Example for R0:
-        //
-        //           reg_write_en   = 1'b1;
-        //           reg_write_dest = 3'd0;
-        //           reg_write_data = 16'hA000;     // unique value for R0
-        //           @(posedge clk); #1;             // commit the write
-        //           reg_write_en   = 1'b0;
-        //
-        //           reg_read_addr_1 = 3'd0; #2;    // asynchronous read settles
-        //           check16(reg_read_data_1, 16'hA000, test_id);
-        //           test_id = test_id + 1;
-        //
-        //       Suggested values: R0=0xA000, R1=0xB001, R2=0xC002, R3=0xD003,
-        //                         R4=0xE004, R5=0xF005, R6=0x1006, R7=0x2007
+        for (i = 0; i < 8; i = i + 1) begin
+            reg_write_en   = 1'b1;
+            reg_write_dest = i[2:0];
+            // Distinct pattern per register: upper nibble from suggested list,
+            // lower nibble = i, so the value uniquely identifies the register.
+            case (i)
+                0: reg_write_data = 16'hA000;
+                1: reg_write_data = 16'hB001;
+                2: reg_write_data = 16'hC002;
+                3: reg_write_data = 16'hD003;
+                4: reg_write_data = 16'hE004;
+                5: reg_write_data = 16'hF005;
+                6: reg_write_data = 16'h1006;
+                7: reg_write_data = 16'h2007;
+            endcase
+            @(posedge clk); #1;
+            reg_write_en = 1'b0;
+
+            reg_read_addr_1 = i[2:0]; #2;
+            check16(reg_read_data_1, reg_write_data, test_id);
+            test_id = test_id + 1;
+        end
 
 
         // ------------------------------------------------------------------
@@ -126,17 +131,14 @@ module GPR_tb;
         // ------------------------------------------------------------------
         $display("--- Test Group 2: Disabled write must not modify register ---");
 
-        // TODO: Attempt to write a different value to R0 with reg_write_en=0.
-        //       Read back R0 and confirm it still holds its original value.
-        //
-        //           reg_write_en   = 1'b0;
-        //           reg_write_dest = 3'd0;
-        //           reg_write_data = 16'hDEAD;     // this value must NOT be written
-        //           @(posedge clk); #1;
-        //
-        //           reg_read_addr_1 = 3'd0; #2;
-        //           check16(reg_read_data_1, 16'hA000, test_id);  // original value
-        //           test_id = test_id + 1;
+        reg_write_en   = 1'b0;
+        reg_write_dest = 3'd0;
+        reg_write_data = 16'hDEAD;
+        @(posedge clk); #1;
+
+        reg_read_addr_1 = 3'd0; #2;
+        check16(reg_read_data_1, 16'hA000, test_id);
+        test_id = test_id + 1;
 
 
         // ------------------------------------------------------------------
@@ -144,14 +146,11 @@ module GPR_tb;
         // ------------------------------------------------------------------
         $display("--- Test Group 3: Simultaneous dual-port read ---");
 
-        // TODO: Set reg_read_addr_1 and reg_read_addr_2 to two different
-        //       registers and verify both values are correct simultaneously.
-        //
-        //           reg_read_addr_1 = 3'd1; // R1
-        //           reg_read_addr_2 = 3'd3; // R3
-        //           #2;
-        //           check16(reg_read_data_1, 16'hB001, test_id); test_id=test_id+1;
-        //           check16(reg_read_data_2, 16'hD003, test_id); test_id=test_id+1;
+        reg_read_addr_1 = 3'd1;
+        reg_read_addr_2 = 3'd3;
+        #2;
+        check16(reg_read_data_1, 16'hB001, test_id); test_id = test_id + 1;
+        check16(reg_read_data_2, 16'hD003, test_id); test_id = test_id + 1;
 
 
         // ------------------------------------------------------------------
@@ -159,24 +158,21 @@ module GPR_tb;
         // ------------------------------------------------------------------
         $display("--- Test Group 4: Read address matches write address during write ---");
 
-        // TODO: Assert reg_write_en, set write and read addresses to the same
-        //       register, and observe what reg_read_data_1 returns before
-        //       the clock edge commits the write.
-        //       Document in your report whether you see the old or new value.
-        //
-        //           reg_write_en   = 1'b1;
-        //           reg_write_dest = 3'd2;
-        //           reg_write_data = 16'hNEW_VALUE;
-        //           reg_read_addr_1 = 3'd2;         // same as write dest
-        //           #2;   // before clock edge
-        //           $display("INFO [T%0d]: Read during write = 0x%h (document this)",
-        //                    test_id, reg_read_data_1);
-        //           test_id = test_id + 1;
-        //           @(posedge clk); #1;
-        //           reg_write_en = 1'b0;
-        //           #2;
-        //           check16(reg_read_data_1, 16'hNEW_VALUE, test_id); // after write
-        //           test_id = test_id + 1;
+        reg_write_en    = 1'b1;
+        reg_write_dest  = 3'd2;
+        reg_write_data  = 16'h1234;
+        reg_read_addr_1 = 3'd2;
+        #2;
+        $display("INFO [T%0d]: Read during write = 0x%h (old value expected)",
+                 test_id, reg_read_data_1);
+        check16(reg_read_data_1, 16'hC002, test_id);
+        test_id = test_id + 1;
+
+        @(posedge clk); #1;
+        reg_write_en = 1'b0;
+        #2;
+        check16(reg_read_data_1, 16'h1234, test_id);
+        test_id = test_id + 1;
 
 
         // ------------------------------------------------------------------

@@ -45,12 +45,13 @@ module ControlUnit_tb;
     );
 
     initial begin
-        $dumpfile("../waves/cu_tb.vcd");
+        $dumpfile("./waves/cu_tb.vcd");
         $dumpvars(0, ControlUnit_tb);
     end
 
     integer fail_count;
     integer test_id;
+    integer i;
 
     // -------------------------------------------------------------------------
     // Composite check task — verifies all 10 control signals in one call.
@@ -107,7 +108,7 @@ module ControlUnit_tb;
         // R-Type 
         // All R-types share the same control signal pattern
         // (alu_op=00, jump=0, beq=0, bne=0, mr=0, mw=0, as=0, rd=1, mtr=0, rw=1)
-        for (integer i = 4'b0010; i <= 4'b1001; i = i + 1) begin
+        for (i = 4'b0010; i <= 4'b1001; i = i + 1) begin
             opcode = i[3:0]; #10;
             check_ctrl(2'b00, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b1, 1'b0, 1'b1, test_id);
             test_id = test_id + 1;

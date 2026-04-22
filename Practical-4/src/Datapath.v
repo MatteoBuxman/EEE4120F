@@ -2,7 +2,7 @@
 // Practical 4: StarCore-1 — Single-Cycle Processor in Verilog
 // =========================================================================
 //
-// GROUP NUMBER:
+// GROUP NUMBER: 18
 //
 // MEMBERS:
 //   - Emmanuel Basua, BSXEMM001
@@ -138,7 +138,7 @@ module Datapath (
         .reg_read_data_1  (reg_read_data_1),
         .reg_read_addr_2  (reg_read_addr_2),
         .reg_read_data_2  (reg_read_data_2)
-    )
+    );
     // =========================================================================
     // 5. IMMEDIATE SIGN-EXTENSION
     // =========================================================================

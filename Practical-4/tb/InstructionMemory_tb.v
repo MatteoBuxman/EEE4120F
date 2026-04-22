@@ -22,14 +22,14 @@ module InstructionMemory_tb;
     InstructionMemory uut (.pc(pc), .instruction(instruction));
 
     initial begin
-        $dumpfile("../waves/im_tb.vcd");
+        $dumpfile("./waves/im_tb.vcd");
         $dumpvars(0, InstructionMemory_tb);
     end
 
     integer fail_count;
     integer test_id;
+    integer i;
     // Expected instruction words — these must match the contents of test.prog.
-    // Update these values after you finalise your test.prog file.
     reg [15:0] expected [0:14];
 
     initial begin
@@ -38,30 +38,45 @@ module InstructionMemory_tb;
 
         $display("=== InstructionMemory Testbench ===");
 
-        // TODO: Load the expected values to match your test.prog file.
-        //       For example, if your first instruction is ADD R2,R0,R1 (0010000001010000):
-        //           expected[0]  = 16'b0010000001010000;
-        //       Fill in all 15 entries to match your test.prog exactly.
-        //
-        //       expected[0]  = 16'bXXXXXXXXXXXXXXXX;
-        //       expected[1]  = 16'bXXXXXXXXXXXXXXXX;
-        //       ... (fill all 15)
+        // Expected program (matches ./test/test.prog exactly)
+        expected[0]  = 16'b0000010000000000; // LD  R0, R2+0
+        expected[1]  = 16'b0000010001000001; // LD  R1, R2+1
+        expected[2]  = 16'b0010000001010000; // ADD R2, R0, R1
+        expected[3]  = 16'b0001001010000000; // ST  R2, R1+0
+        expected[4]  = 16'b0011000001010000; // SUB R2, R0, R1
+        expected[5]  = 16'b0111000001010000; // AND R2, R0, R1
+        expected[6]  = 16'b1000000001010000; // OR  R2, R0, R1
+        expected[7]  = 16'b1001000001010000; // SLT R2, R0, R1
+        expected[8]  = 16'b0010000000000000; // ADD R0, R0, R0
+        expected[9]  = 16'b1011000001000001; // BEQ R0, R1, +1
+        expected[10] = 16'b1100000001000000; // BNE R0, R1, +0
+        expected[11] = 16'b1101000000000000; // JMP 0x000
+        expected[12] = 16'b0000000000000000;
+        expected[13] = 16'b0000000000000000;
+        expected[14] = 16'b0000000000000000;
 
-        // TODO: Walk PC through addresses 0, 2, 4, ... 28 (14 instructions).
-        //       At each address, verify instruction == expected[rom_index].
-        //       Verify also that the output is combinational (no clock needed).
-        //
-        //       For each address:
-        //           pc = 16'd0; #5;  // set PC, wait for combinational output
-        //           if (instruction !== expected[0])
-        //               $display("FAIL [T%0d]: PC=0 got %b exp %b",
-        //                        test_id, instruction, expected[0]);
-        //           else
-        //               $display("PASS [T%0d]: PC=0 instr=%b", test_id, instruction);
-        //           test_id = test_id + 1;
-        //
-        //           pc = 16'd2; #5;
-        //           ... and so on.
+        // Walk PC through every word-aligned address
+        for (i = 0; i < 15; i = i + 1) begin
+            pc = i * 2; #5;
+            if (instruction !== expected[i]) begin
+                $display("FAIL [T%0d]: PC=%0d got %b exp %b",
+                         test_id, pc, instruction, expected[i]);
+                fail_count = fail_count + 1;
+            end else begin
+                $display("PASS [T%0d]: PC=%0d instr=%b", test_id, pc, instruction);
+            end
+            test_id = test_id + 1;
+        end
+
+        // Combinational behaviour: change PC without any clock edge
+        pc = 16'd0;  #1;
+        if (instruction !== expected[0]) begin
+            $display("FAIL [T%0d]: combinational read at PC=0", test_id);
+            fail_count = fail_count + 1;
+        end else begin
+            $display("PASS [T%0d]: combinational output observed (no clock needed)", test_id);
+        end
+        test_id = test_id + 1;
 
         $display("");
         if (fail_count == 0)

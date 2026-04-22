@@ -42,7 +42,7 @@ all: alu gpr imem dmem aluctrl ctrl integration
 # ---------------------------------------------------------------------------
 alu: build/alu_sim
 	@echo "--- Running ALU testbench ---"
-	cd test && ../build/alu_sim
+	./build/alu_sim
 
 build/alu_sim: src/ALU.v tb/ALU_tb.v | build
 	iverilog $(IVFLAGS) -o build/alu_sim src/ALU.v tb/ALU_tb.v
@@ -52,7 +52,7 @@ build/alu_sim: src/ALU.v tb/ALU_tb.v | build
 # ---------------------------------------------------------------------------
 gpr: build/gpr_sim
 	@echo "--- Running GPR testbench ---"
-	cd test && ../build/gpr_sim
+	./build/gpr_sim
 
 build/gpr_sim: src/GPR.v tb/GPR_tb.v | build
 	iverilog $(IVFLAGS) -o build/gpr_sim src/GPR.v tb/GPR_tb.v
@@ -62,7 +62,7 @@ build/gpr_sim: src/GPR.v tb/GPR_tb.v | build
 # ---------------------------------------------------------------------------
 imem: build/im_sim
 	@echo "--- Running InstructionMemory testbench ---"
-	cd test && ../build/im_sim
+	./build/im_sim
 
 build/im_sim: src/InstructionMemory.v tb/InstructionMemory_tb.v | build
 	iverilog $(IVFLAGS) -o build/im_sim \
@@ -73,7 +73,7 @@ build/im_sim: src/InstructionMemory.v tb/InstructionMemory_tb.v | build
 # ---------------------------------------------------------------------------
 dmem: build/dm_sim
 	@echo "--- Running DataMemory testbench ---"
-	cd test && ../build/dm_sim
+	./build/dm_sim
 
 build/dm_sim: src/DataMemory.v tb/DataMemory_tb.v | build
 	iverilog $(IVFLAGS) -o build/dm_sim \
@@ -84,7 +84,7 @@ build/dm_sim: src/DataMemory.v tb/DataMemory_tb.v | build
 # ---------------------------------------------------------------------------
 aluctrl: build/ac_sim
 	@echo "--- Running ALU_Control testbench ---"
-	cd test && ../build/ac_sim
+	./build/ac_sim
 
 build/ac_sim: src/ALU_Control.v tb/ALU_Control_tb.v | build
 	iverilog $(IVFLAGS) -o build/ac_sim \
@@ -95,7 +95,7 @@ build/ac_sim: src/ALU_Control.v tb/ALU_Control_tb.v | build
 # ---------------------------------------------------------------------------
 ctrl: build/cu_sim
 	@echo "--- Running ControlUnit testbench ---"
-	cd test && ../build/cu_sim
+	./build/cu_sim
 
 build/cu_sim: src/ControlUnit.v tb/ControlUnit_tb.v | build
 	iverilog $(IVFLAGS) -o build/cu_sim \
@@ -106,7 +106,7 @@ build/cu_sim: src/ControlUnit.v tb/ControlUnit_tb.v | build
 # ---------------------------------------------------------------------------
 integration: build/star_sim
 	@echo "--- Running StarCore-1 integration testbench ---"
-	cd test && ../build/star_sim
+	./build/star_sim
 
 build/star_sim: $(SRC) tb/StarCore1_tb.v | build
 	iverilog $(IVFLAGS) -o build/star_sim $(SRC) tb/StarCore1_tb.v

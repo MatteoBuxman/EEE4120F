@@ -27,7 +27,7 @@ module ALU_Control_tb;
     );
 
     initial begin
-        $dumpfile("../waves/ac_tb.vcd");
+        $dumpfile("./waves/ac_tb.vcd");
         $dumpvars(0, ALU_Control_tb);
     end
 
@@ -72,7 +72,7 @@ module ALU_Control_tb;
         check_cnt(ALU_Cnt, 3'b001, test_id); test_id=test_id+1;
 
         ALUOp=2'b01; Opcode=4'hB; #10;
-        check_cnt(ALU_Cnt, 3'b001, test_id); test_id=test_id+1
+        check_cnt(ALU_Cnt, 3'b001, test_id); test_id=test_id+1;
 
         // ------------------------------------------------------------------
         // ALUOp = 00 (R-type) — decode from opcode
